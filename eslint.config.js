@@ -19,4 +19,17 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Vendored shadcn/ui primitives + hooks are copy-paste code that
+    // intentionally uses patterns these rules flag (cva variant exports,
+    // random skeleton widths, setState-in-effect sync on mount). Exempt
+    // them while keeping the rules active for project code (src/app,
+    // src/generators) where they caught a real bug in P0.
+    files: ['src/components/ui/**/*.{ts,tsx}', 'src/hooks/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
 ])
