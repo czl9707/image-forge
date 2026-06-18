@@ -18,6 +18,14 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
+// jsdom does not implement ResizeObserver; SwapCollagePreview uses it to size the Stage.
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
 // Konva needs a real canvas, which jsdom does not provide. Replace react-konva's
 // primitives with plain divs so component tests can render the shell without canvas.
 vi.mock("react-konva", async () => {
@@ -31,6 +39,25 @@ vi.mock("react-konva", async () => {
           props.children ?? props.text ?? null,
         ),
     );
+  // Transformer is special: the preview calls instance methods on its ref
+  // (nodes/keepRatio/getLayer). Expose no-op stubs via imperativeHandle so the
+  // selection-binding effect doesn't throw under the jsdom mock.
+  const Transformer = React.forwardRef<
+    Record<string, (...args: never[]) => void>,
+    { children?: React.ReactNode }
+  >((props, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      nodes: () => {},
+      keepRatio: () => {},
+      getLayer: () => ({ batchDraw: () => {} }),
+    }));
+    return React.createElement(
+      "div",
+      { "data-testid": "konva-transformer" },
+      props.children,
+    );
+  });
+
   return {
     Stage: mockEl("konva-stage"),
     Layer: mockEl("konva-layer"),
@@ -39,5 +66,6 @@ vi.mock("react-konva", async () => {
     Image: mockEl("konva-image"),
     Line: mockEl("konva-line"),
     Group: mockEl("konva-group"),
+    Transformer,
   };
 });
