@@ -2,33 +2,39 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A full structural skeleton — the shadcn sidebar-15 inset layout (left nav / center canvas / right ops), react-router URL routing per generator, and a dummy Konva canvas in the center — with **no generator functionality** (every functional slot is a placeholder).
+**Goal:** A full structural skeleton built **on the shadcn sidebar-15 template** (not homebrewed) — the inset layout (left nav / center canvas / right ops), react-router URL routing per generator, a dummy Konva canvas in the center, and a dark/light theme toggle in the header — with **no generator functionality** (every functional slot is a placeholder).
 
-**Architecture:** A single `StudioShell` component reads the `:genId` route param, looks the generator up in `registry`, and renders the sidebar-15 layout: `SidebarLeft` (brand + registry-driven nav), `SidebarInset` (a minor header with breadcrumb + right-sidebar toggle, then the generator's `Preview`), and a toggleable `SidebarRight` hosting the generator's `Controls`. `react-router` (`BrowserRouter` in `main.tsx`) maps `/` → first generator, `/:genId` → `StudioShell`, `*` → first generator. The placeholder generator's `Preview` becomes a dummy Konva `<Stage>` to prove the canvas stack. The right-ops toggle is local component state (the single `SidebarProvider` already owns the left sidebar's collapse).
+**Guiding principle:** *Follow the template, change the content.* The shadcn sidebar-15 block components and `ui/sidebar.tsx` primitives are the layout source of truth. We reuse `NavMain` / `NavSecondary` and the `Sidebar*` primitives, swap in Collage-Studio data, and add theming — we do not hand-roll a parallel sidebar implementation.
 
-**Tech Stack:** Vite + React 19 + TypeScript, Tailwind v4 + shadcn/ui (sidebar-15 block), **react-router** (routing), **konva + react-konva** (dummy canvas), vitest + @testing-library/react + jsdom.
+**Architecture:** A single `StudioShell` component reads the `:genId` route param, looks the generator up in `registry`, and wraps the whole shell in the generator's `Provider` (so state reaches both center and right panel). Inside, `SidebarProvider` lays out three flex siblings: `SidebarLeft` (brand + registry-driven nav via `NavMain`/`NavSecondary`), `SidebarInset` (a minor header = `SidebarTrigger` + breadcrumb + `ModeToggle`, then the generator's `Preview`), and a **static** `SidebarRight` (`collapsible="none"`, always visible on desktop) hosting the generator's `Controls`. `react-router` (`BrowserRouter` in `main.tsx`) maps `/` → first generator, `/:genId` → `StudioShell`, `*` → first generator. `next-themes` (`ThemeProvider` in `main.tsx`, `attribute="class"`, `defaultTheme="system"`) resolves the initial appearance from the OS; the header `ModeToggle` is a single button that flips only between `light` and `dark`. The placeholder generator's `Preview` becomes a dummy Konva `<Stage>` to prove the canvas stack.
 
-**Reference spec:** `docs/superpowers/specs/2026-06-16-collage-studio-design-v2.md` (sections 3.2, 3.3, 10 P1)
+**Tech Stack:** Vite + React 19 + TypeScript, Tailwind v4 + shadcn/ui (sidebar-15 block), **react-router** (routing), **konva + react-konva** (dummy canvas), **next-themes** (theming — already a dependency; CSS `.dark` vars already defined), vitest + @testing-library/react + jsdom.
+
+**Reference spec:** `docs/superpowers/specs/2026-06-16-collage-studio-design-v2.md` (sections 3.2, 3.3, 10 P1). Deviation, by decision: the right ops sidebar is **static** (template default) rather than header-toggleable as spec §3.2 floated.
 
 ---
 
 ## Prerequisite
 
-Start on a feature branch off the current HEAD (`130cdac`, which includes P0 + the v2 design). The current branch name (`feat/collage-studio-p1-render-core`) is stale; a name like `feat/collage-studio-p1-shell-routing` fits this work. If executing via subagent-driven-development, it manages the worktree/branch.
+We are already on branch `feat/collage-studio-p1-shell-routing` (off `130cdac`, which includes P0 + the v2 design). If executing via subagent-driven-development, it manages the worktree/branch; otherwise continue on this branch.
 
 ## File Structure (this phase)
 
-- **Modify:** `package.json` — add `react-router`, `konva`, `react-konva`.
+- **Modify:** `package.json` — add `react-router`, `konva`, `react-konva`. (`next-themes` is already present.)
+- **Modify:** `src/app/registry.ts` — add optional `icon?: LucideIcon`; give the placeholder an icon.
+- **Modify:** `src/components/nav-main.tsx` — switch `<a href>` → `<NavLink>` (SPA routing); `isActive` stays prop-driven.
 - **Modify:** `src/test/setup.ts` — add `matchMedia` + `react-konva` test mocks.
-- **Rewrite:** `src/components/sidebar-left.tsx` — brand + generator nav from `registry` (NavLink).
-- **Rewrite:** `src/components/sidebar-right.tsx` — `Controls` host (children), `collapsible="none"`.
-- **Rewrite:** `src/generators/placeholder/PlaceholderGenerator.tsx` — `PlaceholderPreview` becomes a dummy Konva `<Stage>`.
-- **Create:** `src/app/StudioShell.tsx` — the sidebar-15 layout, reads `:genId`.
+- **Rewrite:** `src/components/sidebar-left.tsx` — template composition, Collage-Studio content (`variant="inset"`).
+- **Rewrite:** `src/components/sidebar-right.tsx` — static `Controls` host (`collapsible="none"`).
+- **Modify:** `src/generators/placeholder/PlaceholderGenerator.tsx` — `PlaceholderPreview` becomes a dummy Konva `<Stage>`.
+- **Create:** `src/components/theme-provider.tsx` — thin re-export of `next-themes` `ThemeProvider`.
+- **Create:** `src/components/mode-toggle.tsx` — single light/dark toggle button (reads `resolvedTheme`).
+- **Create:** `src/app/StudioShell.tsx` — the sidebar-15 inset layout, reads `:genId`.
 - **Rewrite:** `src/app/App.tsx` — the `<Routes>` table (was the hand-rolled 3-column shell).
-- **Modify:** `src/main.tsx` — wrap `<App/>` in `<BrowserRouter>`.
-- **Tests:** `src/components/__tests__/sidebar-left.test.tsx`, `sidebar-right.test.tsx`, `src/generators/placeholder/__tests__/PlaceholderGenerator.test.tsx`, `src/app/__tests__/StudioShell.test.tsx`; **rewrite** `src/app/__tests__/App.test.tsx`.
+- **Modify:** `src/main.tsx` — wrap `<App/>` in `<ThemeProvider>` + `<BrowserRouter>`.
+- **Tests:** `src/components/__tests__/sidebar-left.test.tsx`, `sidebar-right.test.tsx`, `mode-toggle.test.tsx`, `src/generators/placeholder/__tests__/PlaceholderGenerator.test.tsx`, `src/app/__tests__/StudioShell.test.tsx`; **rewrite** `src/app/__tests__/App.test.tsx`.
 
-> Note: the imported block's demo nav components (`nav-favorites`, `nav-workspaces`, `nav-secondary`, `nav-user`, `calendars`, `date-picker`, `team-switcher`, `nav-main`) are no longer imported after the rewrites. They are harmless dead files; deleting them is an optional cleanup, not part of acceptance.
+> Note: the imported block's now-unused demo components (`team-switcher`, `nav-favorites`, `nav-workspaces`, `nav-user`, `calendars`, `date-picker`) are no longer imported after the rewrites. They are harmless dead files; deleting them is an optional cleanup, **not** part of acceptance. (`nav-main` and `nav-secondary` are kept and reused.)
 
 ---
 
@@ -36,6 +42,8 @@ Start on a feature branch off the current HEAD (`130cdac`, which includes P0 + t
 
 **Files:**
 - Modify: `package.json`, `package-lock.json`
+
+> `next-themes` is already a dependency (used by `ui/sonner.tsx`); it needs no install. Only routing + canvas are new.
 
 - [ ] **Step 1: Install the libraries**
 
@@ -73,7 +81,8 @@ The shadcn `Sidebar` reads `window.matchMedia` (mobile detection) and the placeh
 import { vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
-// jsdom does not implement matchMedia; the shadcn Sidebar uses it for mobile detection.
+// jsdom does not implement matchMedia; the shadcn Sidebar (useIsMobile) and
+// next-themes (system theme resolution) both read it. Desktop + "light" default.
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({
@@ -127,11 +136,127 @@ git commit -m "test(p1): mock matchMedia and react-konva in test setup"
 
 ---
 
-### Task 3: `SidebarLeft` — registry-driven generator nav (TDD)
+### Task 3: Theming primitives — `theme-provider` + `mode-toggle` (TDD)
+
+`next-themes` is present but not wired. Add the two standard shadcn files. The toggle is a **single button** — it reads `resolvedTheme` (so the icon and starting state follow the OS via `defaultTheme="system"`) and `setTheme` only ever flips between `"light"` and `"dark"` (no dropdown, no "system" option in the UI).
 
 **Files:**
-- Test: `src/components/__tests__/sidebar-left.test.tsx`
+- Create: `src/components/theme-provider.tsx`
+- Create: `src/components/mode-toggle.tsx`
+- Test: `src/components/__tests__/mode-toggle.test.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+```tsx
+// src/components/__tests__/mode-toggle.test.tsx
+import { describe, expect, it, afterEach } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ThemeProvider } from "../theme-provider";
+import { ModeToggle } from "../mode-toggle";
+
+afterEach(() => {
+  document.documentElement.classList.remove("dark", "light");
+  // next-themes persists the chosen theme to localStorage; clear it so tests
+  // don't bleed state into each other.
+  localStorage.clear();
+});
+
+describe("ModeToggle", () => {
+  it("renders a single toggle button", () => {
+    render(
+      <ThemeProvider attribute="class" defaultTheme="light">
+        <ModeToggle />
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Toggle theme" })).toBeInTheDocument();
+  });
+
+  it("flips light → dark on click (toggles the .dark class on <html>)", async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider attribute="class" defaultTheme="light">
+        <ModeToggle />
+      </ThemeProvider>,
+    );
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Toggle theme" }));
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npx vitest run src/components/__tests__/mode-toggle.test.tsx`
+Expected: FAIL — "Cannot find module '../theme-provider'" / "'../mode-toggle'".
+
+- [ ] **Step 3: Create `src/components/theme-provider.tsx`**
+
+```tsx
+// src/components/theme-provider.tsx
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import type { ComponentProps } from "react";
+
+export function ThemeProvider({
+  children,
+  ...props
+}: ComponentProps<typeof NextThemesProvider>) {
+  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
+}
+```
+
+- [ ] **Step 4: Create `src/components/mode-toggle.tsx`**
+
+```tsx
+// src/components/mode-toggle.tsx
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export function ModeToggle({ className }: { className?: string }) {
+  // resolvedTheme reflects the OS/system theme until the user picks one, so the
+  // icon + starting appearance follow the system. The button only flips light/dark.
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={className}
+      aria-label="Toggle theme"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+    >
+      {isDark ? <Sun /> : <Moon />}
+    </Button>
+  );
+}
+```
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+Run: `npx vitest run src/components/__tests__/mode-toggle.test.tsx`
+Expected: PASS (2 tests).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/components/theme-provider.tsx src/components/mode-toggle.tsx src/components/__tests__/mode-toggle.test.tsx
+git commit -m "feat(p1): theme-provider + light/dark mode-toggle button"
+```
+
+---
+
+### Task 4: `SidebarLeft` — template composition with Collage-Studio content (TDD)
+
+Reuse the block's `NavMain` / `NavSecondary` components, fed from `registry`. Two small, justified touches: the registry gains an optional `icon`; and `NavMain` switches its inner element from `<a href>` to `<NavLink>` so navigation is client-side (its `isActive` prop stays the source of active styling, computed from the route in `SidebarLeft`).
+
+**Files:**
+- Modify: `src/app/registry.ts`
+- Modify: `src/components/nav-main.tsx`
 - Rewrite: `src/components/sidebar-left.tsx`
+- Test: `src/components/__tests__/sidebar-left.test.tsx`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -175,37 +300,119 @@ describe("SidebarLeft", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/__tests__/sidebar-left.test.tsx`
-Expected: FAIL — the current `SidebarLeft` renders sample data ("Acme Inc"), not registry links / "Collage Studio".
+Expected: FAIL — the current `SidebarLeft` renders sample data ("Acme Inc" / favorites / workspaces), not registry links or "Collage Studio".
 
-- [ ] **Step 3: Rewrite `src/components/sidebar-left.tsx`**
+- [ ] **Step 3: Add optional `icon` to the registry**
+
+```ts
+// src/app/registry.ts
+import type { FC, ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import { Layers } from "lucide-react";
+import {
+  PlaceholderControls,
+  PlaceholderPreview,
+} from "../generators/placeholder/PlaceholderGenerator";
+
+export type Generator = {
+  id: string;
+  name: string;
+  icon?: LucideIcon;
+  Preview: FC;
+  Controls: FC;
+  Provider?: FC<{ children: ReactNode }>;
+};
+
+export const registry: Generator[] = [
+  {
+    id: "placeholder",
+    name: "Placeholder",
+    icon: Layers,
+    Preview: PlaceholderPreview,
+    Controls: PlaceholderControls,
+  },
+];
+```
+
+- [ ] **Step 4: Switch `NavMain` to `NavLink` (keep `isActive` prop-driven)**
+
+```tsx
+// src/components/nav-main.tsx
+import { NavLink } from "react-router";
+import { type LucideIcon } from "lucide-react";
+
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+
+export function NavMain({
+  items,
+}: {
+  items: {
+    title: string
+    url: string
+    icon: LucideIcon
+    isActive?: boolean
+  }[]
+}) {
+  return (
+    <SidebarMenu>
+      {items.map((item) => (
+        <SidebarMenuItem key={item.title}>
+          <SidebarMenuButton asChild isActive={item.isActive}>
+            <NavLink to={item.url}>
+              <item.icon />
+              <span>{item.title}</span>
+            </NavLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  )
+}
+```
+
+> Only the inner element changed: `<a href={item.url}>` → `<NavLink to={item.url}>`. Everything else is the template verbatim. `SidebarMenuButton`'s `isActive` still drives active styling (computed in `SidebarLeft` from the route); `NavLink` provides client-side navigation.
+
+- [ ] **Step 5: Rewrite `src/components/sidebar-left.tsx`**
 
 ```tsx
 // src/components/sidebar-left.tsx
 import * as React from "react";
-import { NavLink, useLocation } from "react-router";
-import { Layers } from "lucide-react";
+import { useLocation } from "react-router";
+import { Layers, LifeBuoy, Settings2 } from "lucide-react";
 
 import { registry } from "@/app/registry";
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+
+const navSecondary = [
+  { title: "Settings", url: "#", icon: Settings2 },
+  { title: "Help", url: "#", icon: LifeBuoy },
+];
 
 export function SidebarLeft({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const { pathname } = useLocation();
 
+  const items = registry.map((g) => ({
+    title: g.name,
+    url: `/${g.id}`,
+    icon: g.icon ?? Layers,
+    isActive: pathname === `/${g.id}`,
+  }));
+
   return (
-    <Sidebar className="border-r-0" {...props}>
+    <Sidebar variant="inset" collapsible="icon" className="border-r-0" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className="flex size-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
@@ -220,25 +427,8 @@ export function SidebarLeft({
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Generators</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {registry.map((g) => (
-                <SidebarMenuItem key={g.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === `/${g.id}`}
-                  >
-                    <NavLink to={`/${g.id}`}>
-                      <span>{g.name}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavMain items={items} />
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
@@ -246,21 +436,23 @@ export function SidebarLeft({
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [ ] **Step 6: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/__tests__/sidebar-left.test.tsx`
-Expected: PASS (2 tests).
+Expected: PASS (2 tests). The existing `registry.test.ts` stays green (it asserts ids/names/length, unaffected by the added optional `icon`).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/components/sidebar-left.tsx src/components/__tests__/sidebar-left.test.tsx
-git commit -m "feat(p1): registry-driven generator nav in SidebarLeft"
+git add src/app/registry.ts src/components/nav-main.tsx src/components/sidebar-left.tsx src/components/__tests__/sidebar-left.test.tsx
+git commit -m "feat(p1): registry-driven SidebarLeft via NavMain/NavSecondary"
 ```
 
 ---
 
-### Task 4: `SidebarRight` — Controls host (TDD)
+### Task 5: `SidebarRight` — static `Controls` host (TDD)
+
+Template shell, `collapsible="none"`, always visible on desktop (hidden below `lg`). Renders its children as the operations content. No toggle — static, per decision.
 
 **Files:**
 - Test: `src/components/__tests__/sidebar-right.test.tsx`
@@ -295,7 +487,7 @@ describe("SidebarRight", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/__tests__/sidebar-right.test.tsx`
-Expected: FAIL — the current `SidebarRight` renders sample calendars, not arbitrary children.
+Expected: FAIL — the current `SidebarRight` renders sample calendars/date-picker/nav-user, not arbitrary children.
 
 - [ ] **Step 3: Rewrite `src/components/sidebar-right.tsx`**
 
@@ -312,7 +504,7 @@ export function SidebarRight({
   return (
     <Sidebar
       collapsible="none"
-      className="hidden h-full w-80 shrink-0 border-l border-sidebar-border lg:flex"
+      className="sticky top-0 hidden h-svh border-l border-sidebar-border lg:flex"
       {...props}
     >
       <SidebarContent>{children}</SidebarContent>
@@ -320,6 +512,8 @@ export function SidebarRight({
   );
 }
 ```
+
+> `collapsible="none"` short-circuits to a plain full-height column of `--sidebar-width` (16rem). The `hidden … lg:flex` mirrors the block's desktop-only visibility. Class set is the template's own; adjust in the smoke step only if the panel mis-sizes inside the inset row.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
@@ -330,18 +524,18 @@ Expected: PASS (1 test).
 
 ```bash
 git add src/components/sidebar-right.tsx src/components/__tests__/sidebar-right.test.tsx
-git commit -m "feat(p1): SidebarRight as Controls host"
+git commit -m "feat(p1): SidebarRight as static Controls host"
 ```
 
 ---
 
-### Task 5: Dummy Konva canvas in `PlaceholderPreview` (TDD)
+### Task 6: Dummy Konva canvas in `PlaceholderPreview` (TDD)
 
 **Files:**
 - Test: `src/generators/placeholder/__tests__/PlaceholderGenerator.test.tsx`
 - Modify: `src/generators/placeholder/PlaceholderGenerator.tsx`
 
-> Keep the canvas label text as `"Preview area"` (the existing `App.test.tsx` asserts it) so the old shell test stays green until Task 7 rewrites it.
+> Keep the canvas label text as `"Preview area"` (the `StudioShell` and `App` tests assert it).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -436,7 +630,9 @@ git commit -m "feat(p1): dummy Konva stage as placeholder preview"
 
 ---
 
-### Task 6: `StudioShell` — the sidebar-15 layout (TDD)
+### Task 7: `StudioShell` — the sidebar-15 inset layout (TDD)
+
+The generator `Provider` wraps the entire `SidebarProvider` so shared state reaches both the center `Preview` and the right `Controls`. Inside `SidebarProvider`, three flex siblings: `SidebarLeft` (inset), `SidebarInset` (minor header + canvas), `SidebarRight` (static, last child). The minor header holds the left `SidebarTrigger`, a breadcrumb, and the `ModeToggle`. **No right-panel toggle.**
 
 **Files:**
 - Test: `src/app/__tests__/StudioShell.test.tsx`
@@ -448,7 +644,6 @@ git commit -m "feat(p1): dummy Konva stage as placeholder preview"
 // src/app/__tests__/StudioShell.test.tsx
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { StudioShell } from "../StudioShell";
 import { registry } from "../registry";
@@ -474,17 +669,16 @@ describe("StudioShell", () => {
     expect(screen.getByText("Operations")).toBeInTheDocument();
   });
 
-  it("toggles the operations panel from the header button", async () => {
-    const user = userEvent.setup();
+  it("renders the theme toggle in the header", () => {
     renderShellAt("/placeholder");
-    expect(screen.getByText("Operations")).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Toggle operations panel" }),
-    );
-    expect(screen.queryByText("Operations")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Toggle theme" }),
+    ).toBeInTheDocument();
   });
 });
 ```
+
+> `ModeToggle` uses `useTheme`, which renders fine without a `ThemeProvider` (no throw) — it just won't resolve a theme. That's enough for this render assertion; Task 8 wires the real provider.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -495,15 +689,13 @@ Expected: FAIL — "Cannot find module '../StudioShell'".
 
 ```tsx
 // src/app/StudioShell.tsx
-import { useState } from "react";
 import type { ReactNode } from "react";
 import { NavLink, useParams } from "react-router";
-import { PanelRight } from "lucide-react";
 
 import { registry } from "@/app/registry";
+import { ModeToggle } from "@/components/mode-toggle";
 import { SidebarLeft } from "@/components/sidebar-left";
 import { SidebarRight } from "@/components/sidebar-right";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -530,61 +722,48 @@ function findGenerator(id?: string) {
 export function StudioShell() {
   const { genId } = useParams();
   const generator = findGenerator(genId);
-  const [rightOpen, setRightOpen] = useState(true);
 
   const Preview = generator.Preview;
   const Controls = generator.Controls;
   const Provider = generator.Provider ?? PassthroughProvider;
 
   return (
-    <SidebarProvider>
-      <SidebarLeft />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink asChild>
-                  <NavLink to={`/${registry[0].id}`}>Collage Studio</NavLink>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{generator.name}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto"
-            aria-label="Toggle operations panel"
-            aria-expanded={rightOpen}
-            onClick={() => setRightOpen((open) => !open)}
-          >
-            <PanelRight />
-          </Button>
-        </header>
+    <Provider>
+      <SidebarProvider>
+        <SidebarLeft />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-[orientation=vertical]:h-4"
+            />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink asChild>
+                    <NavLink to={`/${registry[0].id}`}>Collage Studio</NavLink>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{generator.name}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <ModeToggle className="ml-auto" />
+          </header>
 
-        <Provider>
-          <div className="flex flex-1 overflow-hidden">
-            <section className="flex flex-1 items-center justify-center overflow-auto p-4">
-              <Preview />
-            </section>
-            {rightOpen && (
-              <SidebarRight>
-                <Controls />
-              </SidebarRight>
-            )}
+          <div className="flex flex-1 items-center justify-center overflow-auto p-4">
+            <Preview />
           </div>
-        </Provider>
-      </SidebarInset>
-    </SidebarProvider>
+        </SidebarInset>
+
+        <SidebarRight>
+          <Controls />
+        </SidebarRight>
+      </SidebarProvider>
+    </Provider>
   );
 }
 ```
@@ -598,12 +777,12 @@ Expected: PASS (3 tests).
 
 ```bash
 git add src/app/StudioShell.tsx src/app/__tests__/StudioShell.test.tsx
-git commit -m "feat(p1): add StudioShell sidebar-15 layout reading :genId"
+git commit -m "feat(p1): add StudioShell sidebar-15 inset layout reading :genId"
 ```
 
 ---
 
-### Task 7: Routing — `App` route table + `BrowserRouter` + rewrite `App.test` (TDD)
+### Task 8: Routing — `App` route table + `ThemeProvider` + `BrowserRouter` + rewrite `App.test` (TDD)
 
 **Files:**
 - Rewrite: `src/app/App.tsx` (was the hand-rolled 3-column shell)
@@ -616,7 +795,6 @@ git commit -m "feat(p1): add StudioShell sidebar-15 layout reading :genId"
 // src/app/__tests__/App.test.tsx
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { App } from "../App";
 import { registry } from "../registry";
@@ -649,13 +827,11 @@ describe("App routing + shell", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
-  it("hides the operations panel on toggle click", async () => {
-    const user = userEvent.setup();
+  it("renders the theme toggle in the header", () => {
     renderAt("/placeholder");
-    await user.click(
-      screen.getByRole("button", { name: "Toggle operations panel" }),
-    );
-    expect(screen.queryByText("Operations")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Toggle theme" }),
+    ).toBeInTheDocument();
   });
 });
 ```
@@ -663,7 +839,7 @@ describe("App routing + shell", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/app/__tests__/App.test.tsx`
-Expected: FAIL — the current `App` is the hand-rolled shell (no breadcrumb navigation; no "Toggle operations panel" button).
+Expected: FAIL — the current `App` is the hand-rolled shell (no breadcrumb navigation; no theme toggle; nav is buttons not links).
 
 - [ ] **Step 3: Rewrite `src/app/App.tsx`**
 
@@ -686,24 +862,34 @@ export function App() {
 }
 ```
 
-- [ ] **Step 4: Wrap `App` in `BrowserRouter` in `src/main.tsx`**
+- [ ] **Step 4: Wrap `App` in `ThemeProvider` + `BrowserRouter` in `src/main.tsx`**
 
 ```tsx
 // src/main.tsx
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./index.css";
 import { App } from "./app/App";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ThemeProvider>
   </StrictMode>,
 );
 ```
+
+> `defaultTheme="system"` + `enableSystem` resolves the initial light/dark from the OS; the `ModeToggle` button then flips between explicit `light`/`dark`. `disableTransitionOnChange` avoids a color flash on toggle. CSS `.dark` variables already exist in `index.css`. This is a client-only Vite SPA, so `suppressHydrationWarning` on `<html>` is unnecessary (React never owns `documentElement.className`).
 
 - [ ] **Step 5: Run the test to verify it passes**
 
@@ -714,19 +900,19 @@ Expected: PASS (4 tests).
 
 ```bash
 git add src/app/App.tsx src/app/__tests__/App.test.tsx src/main.tsx
-git commit -m "feat(p1): route /:genId to StudioShell via react-router"
+git commit -m "feat(p1): route /:genId to StudioShell; wire ThemeProvider + BrowserRouter"
 ```
 
 ---
 
-### Task 8: Full suite + typecheck + build + manual smoke
+### Task 9: Full suite + typecheck + build + manual smoke
 
 **Files:** none new.
 
 - [ ] **Step 1: Run the full test suite**
 
 Run: `npm test`
-Expected: all PASS — `registry` (3), `SidebarLeft` (2), `SidebarRight` (1), `PlaceholderGenerator` (3), `StudioShell` (3), `App` (4).
+Expected: all PASS — `registry` (3), `ModeToggle` (2), `SidebarLeft` (2), `SidebarRight` (1), `PlaceholderGenerator` (3), `StudioShell` (3), `App` (4).
 
 - [ ] **Step 2: Typecheck**
 
@@ -742,10 +928,12 @@ Expected: build succeeds (bundles konva + react-konva + react-router).
 
 Run: `npm run dev`, open http://localhost:5173, then confirm:
 - `/` redirects to `/placeholder`; the URL bar shows it.
-- Layout: left nav (brand "Collage Studio" + "Placeholder" link), center minor header (breadcrumb "Collage Studio / Placeholder" + a right toggle button) over a dashed dummy canvas reading "Preview area", right ops panel reading "Operations".
-- Clicking the right-toggle button hides/shows the ops panel.
-- The left `SidebarTrigger` (and ⌘B) collapse/expand the left nav.
-- Refreshing at `/placeholder` deep-links correctly.
+- Layout (sidebar-15 inset): left nav (brand "Collage Studio" + "Placeholder" link + Settings/Help), center minor header (`SidebarTrigger` + breadcrumb "Collage Studio / Placeholder" + theme-toggle button at the right) over a dashed dummy canvas reading "Preview area", right ops panel (always visible on desktop) reading "Operations".
+- The theme-toggle button flips light ↔ dark (icon Moon/Sun swaps, colors follow).
+- The initial appearance follows the OS theme on first load.
+- The left `SidebarTrigger` (and ⌘B) collapse the left nav to an icon rail and expand it; the inset margin adjusts.
+- Clicking the "Placeholder" nav link and using browser back/forward work; refreshing at `/placeholder` deep-links correctly.
+- Resize the window narrow: the right ops panel hides below `lg`; the left nav collapses to a mobile sheet via the trigger.
 
 - [ ] **Step 5: Commit (only if any fixups were needed)**
 
@@ -760,13 +948,14 @@ git commit -m "test(p1): p1 shell-routing acceptance fixes"
 
 ## P1 Acceptance
 
-- App boots in the **sidebar-15 inset layout** (left nav / minor header + center canvas / toggleable right ops).
+- App boots in the **sidebar-15 inset layout** (left nav / minor header + center canvas / static right ops) built from the shadcn template components — not homebrewed.
 - **react-router** drives URLs: `/` redirects to the first generator; `/:genId` renders `StudioShell`; deep-linking + back/forward work.
-- Left nav links are built from `registry`; breadcrumb reflects the active generator.
+- Left nav links are built from `registry` (via `NavMain`); breadcrumb reflects the active generator.
 - A **dummy Konva `<Stage>`** renders in the center (canvas stack proven).
-- Right ops panel toggles from the header.
+- **Dark/light theming** works: initial appearance follows the OS (`defaultTheme="system"`); the header button toggles light ↔ dark.
+- Right ops panel is **static** (visible on desktop, hidden below `lg`); there is no right-panel toggle.
 - `npm test` green; `tsc --noEmit` clean; `npm run build` succeeds.
 
 ## Handoff to P2
 
-P2 (separate plan) populates the swap-collage generator: installs nothing new for routing, adds the pure `geometry`/`fit` helpers + tests, `SwapCollageProvider`/`Preview`/`Controls`, the on-canvas mask (Konva `Rect` + `Transformer`), and export via `stage.toCanvas`, and appends the `swap-collage` entry to `registry` (→ `/swap-collage`). The shell, routing, and test mocks from P1 are reused unchanged.
+P2 (separate plan) populates the swap-collage generator: installs nothing new for routing/theming, adds the pure `geometry`/`fit` helpers + tests, `SwapCollageProvider`/`Preview`/`Controls`, the on-canvas mask (Konva `Rect` + `Transformer`), and export via `stage.toCanvas`, and appends the `swap-collage` entry to `registry` (→ `/swap-collage`). The shell, routing, theming, and test mocks from P1 are reused unchanged.
