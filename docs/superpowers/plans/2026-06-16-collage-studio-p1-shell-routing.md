@@ -412,7 +412,7 @@ export function SidebarLeft({
   }));
 
   return (
-    <Sidebar variant="inset" collapsible="icon" className="border-r-0" {...props}>
+    <Sidebar variant="inset" collapsible="offcanvas" className="border-r-0" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className="flex size-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
@@ -504,7 +504,7 @@ export function SidebarRight({
   return (
     <Sidebar
       collapsible="none"
-      className="sticky top-0 hidden h-svh border-l border-sidebar-border lg:flex"
+      className="sticky top-0 hidden h-svh lg:flex"
       {...props}
     >
       <SidebarContent>{children}</SidebarContent>
@@ -931,7 +931,7 @@ Run: `npm run dev`, open http://localhost:5173, then confirm:
 - Layout (sidebar-15 inset): left nav (brand "Collage Studio" + "Placeholder" link + Settings/Help), center minor header (`SidebarTrigger` + breadcrumb "Collage Studio / Placeholder" + theme-toggle button at the right) over a dashed dummy canvas reading "Preview area", right ops panel (always visible on desktop) reading "Operations".
 - The theme-toggle button flips light ↔ dark (icon Moon/Sun swaps, colors follow).
 - The initial appearance follows the OS theme on first load.
-- The left `SidebarTrigger` (and ⌘B) collapse the left nav to an icon rail and expand it; the inset margin adjusts.
+- The left `SidebarTrigger` (and ⌘B) collapse the left nav fully off-screen (offcanvas — strictly invisible, zero gap) and expand it; the inset margin adjusts.
 - Clicking the "Placeholder" nav link and using browser back/forward work; refreshing at `/placeholder` deep-links correctly.
 - Resize the window narrow: the right ops panel hides below `lg`; the left nav collapses to a mobile sheet via the trigger.
 

@@ -9,7 +9,7 @@ export function SidebarRight({
   return (
     <Sidebar
       collapsible="none"
-      className="sticky top-0 hidden h-svh border-l border-sidebar-border lg:flex"
+      className="sticky top-0 hidden h-svh lg:flex"
       {...props}
     >
       <SidebarContent>{children}</SidebarContent>

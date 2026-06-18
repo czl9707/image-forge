@@ -30,7 +30,7 @@ export function SidebarLeft({
   }));
 
   return (
-    <Sidebar variant="inset" collapsible="icon" className="border-r-0" {...props}>
+    <Sidebar variant="inset" collapsible="offcanvas" className="border-r-0" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className="flex size-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
