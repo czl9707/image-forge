@@ -1,26 +1,41 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { App } from "../App";
+import { registry } from "../registry";
 
-describe("App shell", () => {
-  it("renders nav from registry", () => {
-    render(<App />);
-    expect(screen.getByRole("button", { name: "Placeholder" })).toBeInTheDocument();
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
+}
+
+describe("App routing + shell", () => {
+  it("redirects '/' to the first generator", () => {
+    renderAt("/");
+    const breadcrumb = screen.getByRole("navigation", { name: "breadcrumb" });
+    expect(breadcrumb).toHaveTextContent(registry[0].name);
   });
 
-  it("renders the active generator's Preview and Controls", () => {
-    render(<App />);
+  it("renders the active generator's preview and operations", () => {
+    renderAt("/placeholder");
     expect(screen.getByText("Preview area")).toBeInTheDocument();
     expect(screen.getByText("Operations")).toBeInTheDocument();
   });
 
-  it("switches active generator on nav click", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    const btn = screen.getByRole("button", { name: "Placeholder" });
-    await user.click(btn);
-    // still rendered (single generator); assert no crash + still present
-    expect(screen.getByText("Preview area")).toBeInTheDocument();
+  it("renders a nav link per registry entry", () => {
+    renderAt("/placeholder");
+    expect(
+      screen.getAllByRole("link", { name: registry[0].name }).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders the theme toggle in the header", () => {
+    renderAt("/placeholder");
+    expect(
+      screen.getByRole("button", { name: "Toggle theme" }),
+    ).toBeInTheDocument();
   });
 });
