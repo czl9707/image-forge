@@ -5,6 +5,7 @@ import {
   PlaceholderControls,
   PlaceholderPreview,
 } from "../generators/placeholder/PlaceholderGenerator";
+import { swapCollageGenerator } from "../generators/swap-collage";
 
 export type Generator = {
   id: string;
@@ -23,4 +24,5 @@ export const registry: Generator[] = [
     Preview: PlaceholderPreview,
     Controls: PlaceholderControls,
   },
+  swapCollageGenerator,
 ];
