@@ -187,7 +187,11 @@ export function FilterStackControls({
             <Plus className="size-4" /> Add filter
           </span>
         </SelectTrigger>
-        <SelectContent>
+        {/* position="popper" is required: this Select has no selected value
+            (value=""), and the default "item-aligned" mode positions the
+            content relative to a selected item — with none, the dropdown
+            renders off the visible area. Popper anchors it to the trigger. */}
+        <SelectContent position="popper" sideOffset={4}>
           {ALL_KINDS.map((k) => (
             <SelectItem key={k} value={k}>
               {KIND_META[k].label}
