@@ -31,8 +31,9 @@ describe("colorize filter", () => {
       ...gray(128), 255, // mid gray
       ...gray(255), 255, // white
       ...gray(0), 255, // black
+      ...gray(100), 128, // alpha 128
     ]);
-    const imageData = { data, width: 3, height: 1 } as ImageData;
+    const imageData = { data, width: 4, height: 1 } as ImageData;
 
     const ctx = { colorHue: 0, colorSat: 1 };
     colorize.call(ctx, imageData);
@@ -42,5 +43,6 @@ describe("colorize filter", () => {
     // white stays white, black stays black
     expect([data[4], data[5], data[6]]).toEqual([255, 255, 255]);
     expect([data[8], data[9], data[10]]).toEqual([0, 0, 0]);
+    expect(data[15]).toBe(128); // alpha untouched
   });
 });
