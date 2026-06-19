@@ -32,8 +32,8 @@ export const DEFAULT_MASK: Mask = { x: 0.3, y: 0.3, w: 0.4, h: 0.4 };
 export const IDENTITY_XFORM: Transform = { panX: 0, panY: 0, zoom: 1 };
 
 export const initialSwapState: SwapState = {
-  orientation: "lr",
-  aspect: "16:9",
+  orientation: "tb",
+  aspect: "4:3",
   exportSize: 1080,
   mask: DEFAULT_MASK,
   xformA: { ...IDENTITY_XFORM },

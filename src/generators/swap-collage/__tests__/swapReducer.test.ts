@@ -9,8 +9,8 @@ import {
 
 describe("swapReducer", () => {
   it("has the expected initial state", () => {
-    expect(initialSwapState.orientation).toBe("lr");
-    expect(initialSwapState.aspect).toBe("16:9");
+    expect(initialSwapState.orientation).toBe("tb");
+    expect(initialSwapState.aspect).toBe("4:3");
     expect(initialSwapState.exportSize).toBe(1080);
     expect(initialSwapState.mask).toEqual(DEFAULT_MASK);
     expect(initialSwapState.xformA.zoom).toBe(1);
