@@ -15,6 +15,13 @@ describe("swapReducer", () => {
     expect(initialSwapState.mask).toEqual(DEFAULT_MASK);
     expect(initialSwapState.xformA.zoom).toBe(1);
     expect(initialSwapState.selection).toBeNull();
+    expect(initialSwapState.filtersA.map((f) => f.kind)).toEqual([
+      "blur",
+      "brightness",
+      "contrast",
+      "saturation",
+      "hue",
+    ]);
   });
 
   it("sets orientation AND re-fits both images (canvas rotated)", () => {
@@ -94,6 +101,35 @@ describe("swapReducer", () => {
     );
     expect(s.xformB).toEqual({ panX: 0, panY: 0, zoom: 1 });
     expect(s.xformA.zoom).toBe(1); // untouched
+  });
+
+  it("initializes each slot with the default filter stack", () => {
+    expect(initialSwapState.filtersA).toHaveLength(5);
+    expect(initialSwapState.filtersB).toHaveLength(5);
+  });
+
+  it("SET_FILTERS updates the named slot only", () => {
+    const next = swapReducer(initialSwapState, {
+      type: "SET_FILTERS",
+      slot: "A",
+      filters: [],
+    } as SwapAction);
+    expect(next.filtersA).toEqual([]);
+    expect(next.filtersB).toHaveLength(5); // untouched
+  });
+
+  it("orientation change resets transform but leaves filters intact", () => {
+    const withFilters = swapReducer(initialSwapState, {
+      type: "SET_FILTERS",
+      slot: "A",
+      filters: [],
+    } as SwapAction);
+    const after = swapReducer(withFilters, {
+      type: "SET_ORIENTATION",
+      orientation: "tb",
+    } as SwapAction);
+    expect(after.filtersA).toEqual([]); // preserved
+    expect(after.xformA.zoom).toBe(1); // transform reset
   });
 
 });

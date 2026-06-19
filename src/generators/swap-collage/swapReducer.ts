@@ -1,5 +1,6 @@
 // src/generators/swap-collage/swapReducer.ts
 import { clampRect, type Rect } from "@/lib/geometry";
+import { DEFAULT_STACK, type FilterStack } from "@/lib/filters";
 
 export type Orientation = "lr" | "tb";
 export type AspectId = "16:9" | "4:3" | "1:1";
@@ -21,6 +22,8 @@ export interface SwapState {
   mask: Mask;
   xformA: Transform;
   xformB: Transform;
+  filtersA: FilterStack;
+  filtersB: FilterStack;
   selection: Selection;
 }
 
@@ -35,6 +38,8 @@ export const initialSwapState: SwapState = {
   mask: DEFAULT_MASK,
   xformA: { ...IDENTITY_XFORM },
   xformB: { ...IDENTITY_XFORM },
+  filtersA: DEFAULT_STACK.map((f) => ({ ...f })),
+  filtersB: DEFAULT_STACK.map((f) => ({ ...f })),
   selection: null,
 };
 
@@ -45,7 +50,8 @@ export type SwapAction =
   | { type: "SET_MASK"; mask: Mask }
   | { type: "SET_XFORM"; slot: Slot; xform: Transform }
   | { type: "SET_SELECTION"; selection: Selection }
-  | { type: "RESET_XFORM"; slot: Slot };
+  | { type: "RESET_XFORM"; slot: Slot }
+  | { type: "SET_FILTERS"; slot: Slot; filters: FilterStack };
 
 export function swapReducer(state: SwapState, action: SwapAction): SwapState {
   switch (action.type) {
@@ -75,6 +81,10 @@ export function swapReducer(state: SwapState, action: SwapAction): SwapState {
         : { ...state, xformB: action.xform };
     case "SET_SELECTION":
       return { ...state, selection: action.selection };
+    case "SET_FILTERS":
+      return action.slot === "A"
+        ? { ...state, filtersA: action.filters }
+        : { ...state, filtersB: action.filters };
     case "RESET_XFORM":
       return action.slot === "A"
         ? { ...state, xformA: { ...IDENTITY_XFORM } }
