@@ -1,19 +1,25 @@
 // src/generators/swap-collage/SwapCollagePreview.tsx
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 import {
   Group,
   Image as KonvaImage,
   Layer,
   Rect,
   Stage,
-  Transformer,
+  Text,
 } from "react-konva";
 import type Konva from "konva";
+import { useTheme } from "next-themes";
 import { useSwapCollage } from "./SwapCollageProvider";
 import { canvasDims, containFit, tileLayout } from "./dimensions";
-import { coverFit } from "@/lib/canvas/fit";
+import { clampCoverPos, coverFit } from "@/lib/canvas/fit";
 import { toPixels } from "@/lib/geometry";
-import { ImageDropzone } from "@/components/shared/ImageDropzone";
 import type { Slot, Transform } from "./swapReducer";
 
 interface Placement {
@@ -33,15 +39,21 @@ function placement(
   const { scale } = coverFit(iw, ih, tileW, tileH);
   const width = iw * scale * xform.zoom;
   const height = ih * scale * xform.zoom;
-  return {
+  // Clamp to the cover window so no empty edge is ever revealed (render + export).
+  const { x, y } = clampCoverPos(
+    (tileW - width) / 2 + xform.panX * tileW,
+    (tileH - height) / 2 + xform.panY * tileH,
     width,
     height,
-    x: (tileW - width) / 2 + xform.panX * tileW,
-    y: (tileH - height) / 2 + xform.panY * tileH,
-  };
+    tileW,
+    tileH,
+  );
+  return { width, height, x, y };
 }
 
-/** Solve a node's geometry back to a resolution-stable transform. */
+/** Solve a node's geometry back to a resolution-stable transform. The node's
+ *  position is clamped to the cover window first, so a drag can never store a
+ *  transform that would reveal an empty edge. */
 function solveXform(
   node: Konva.Image,
   iw: number,
@@ -53,11 +65,61 @@ function solveXform(
   const width = node.width() * node.scaleX();
   const height = node.height() * node.scaleY();
   const zoom = width / (iw * scale);
+  const { x, y } = clampCoverPos(node.x(), node.y(), width, height, tileW, tileH);
   return {
     zoom,
-    panX: (node.x() - (tileW - width) / 2) / tileW,
-    panY: (node.y() - (tileH - height) / 2) / tileH,
+    panX: (x - (tileW - width) / 2) / tileW,
+    panY: (y - (tileH - height) / 2) / tileH,
   };
+}
+
+/** Target on-screen size (CSS px) for the placeholder hint, regardless of the
+ *  stage scale / export size. Divided by `scale` at the call site to convert
+ *  into the stage's logical units. */
+const PLACEHOLDER_FONT_PX = 18;
+
+/** Swap-area guide border style, in on-screen px (divided by `scale` to use). */
+const GUIDE_STROKE_PX = 1.5;
+const GUIDE_DASH_PX: [number, number] = [6, 4];
+
+/**
+ * Empty-slot placeholder, drawn with Konva shapes so it lives natively on the
+ * same Stage as real images (no separate HTML path, no async image decode).
+ * A muted fill + small centered hint. Clicking it opens the file dialog; it is
+ * never draggable or selectable for transform — only real images are.
+ */
+function Placeholder({
+  tileW,
+  tileH,
+  fontSize,
+  muted,
+  mutedFg,
+  onActivate,
+}: {
+  tileW: number;
+  tileH: number;
+  fontSize: number;
+  muted: string;
+  mutedFg: string;
+  onActivate: () => void;
+}) {
+  return (
+    <Group onMouseDown={onActivate} onTap={onActivate}>
+      <Rect x={0} y={0} width={tileW} height={tileH} fill={muted} />
+      <Text
+        text="Drop or click to upload"
+        x={0}
+        y={0}
+        width={tileW}
+        height={tileH}
+        align="center"
+        verticalAlign="middle"
+        fontSize={fontSize}
+        fill={mutedFg}
+        listening={false}
+      />
+    </Group>
+  );
 }
 
 export function SwapCollagePreview() {
@@ -65,11 +127,23 @@ export function SwapCollagePreview() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [avail, setAvail] = useState({ w: 0, h: 0 });
 
-  // node refs for selection → Transformer binding
-  const imgARef = useRef<Konva.Image | null>(null);
-  const imgBRef = useRef<Konva.Image | null>(null);
-  const maskARef = useRef<Konva.Rect | null>(null);
-  const trRef = useRef<Konva.Transformer | null>(null);
+  // hidden file inputs so a click on a placeholder can open the picker
+  const fileARef = useRef<HTMLInputElement>(null);
+  const fileBRef = useRef<HTMLInputElement>(null);
+
+  // Off-screen element wearing the muted Tailwind classes; we read its computed
+  // background/text color. That yields resolved rgb() values that Konva/canvas
+  // always accept and that track light/dark correctly (reading the raw oklch
+  // tokens directly proved unreliable).
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+  const [pal, setPal] = useState({ muted: "#e5e7eb", mutedFg: "#6b7280" });
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const s = getComputedStyle(el);
+    setPal({ muted: s.backgroundColor || "#e5e7eb", mutedFg: s.color || "#6b7280" });
+  }, [resolvedTheme]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -82,24 +156,6 @@ export function SwapCollagePreview() {
     return () => ro.disconnect();
   }, []);
 
-  // keep the Transformer bound to the selected node
-  useEffect(() => {
-    const tr = trRef.current;
-    if (!tr) return;
-    const node =
-      state.selection === "imgA"
-        ? imgARef.current
-        : state.selection === "imgB"
-          ? imgBRef.current
-          : state.selection === "mask"
-            ? maskARef.current
-            : null;
-    tr.nodes(node ? [node] : []);
-    // images keep aspect (uniform zoom); the mask is a free rectangle
-    tr.keepRatio(state.selection === "imgA" || state.selection === "imgB");
-    tr.getLayer()?.batchDraw();
-  }, [state.selection, imgA.status, imgB.status]);
-
   const dims = canvasDims(state.aspect, state.exportSize);
   const tiles = tileLayout(state.orientation, dims);
   const { dispW, dispH, scale } = containFit(
@@ -111,9 +167,36 @@ export function SwapCollagePreview() {
 
   const maskPx = toPixels(state.mask, tiles.tileW, tiles.tileH);
 
-  const selectSlot = (slot: Slot) => dispatch({ type: "SET_SELECTION", selection: slot === "A" ? "imgA" : "imgB" });
-  const selectMask = () => dispatch({ type: "SET_SELECTION", selection: "mask" });
-  const deselect = () => dispatch({ type: "SET_SELECTION", selection: null });
+  const openPicker = (slot: Slot) =>
+    (slot === "A" ? fileARef.current : fileBRef.current)?.click();
+
+  const onPickFile = (slot: Slot) => (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) loadImage(slot, f);
+    e.target.value = "";
+  };
+
+  // Drag a file onto the canvas → load it into whichever tile is under the
+  // cursor. The stage canvas is centered in the container, so map the drop
+  // point against the canvas's own bounding rect, then split on the midline.
+  const onDropFile = (e: DragEvent<HTMLDivElement>) => {
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    e.preventDefault();
+    const rect = stageRef.current?.container().getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const slot: Slot =
+      state.orientation === "lr"
+        ? x < rect.width / 2
+          ? "A"
+          : "B"
+        : y < rect.height / 2
+          ? "A"
+          : "B";
+    loadImage(slot, file);
+  };
 
   const onImageTransform = (slot: Slot, node: Konva.Image | null) => {
     const bmp = slot === "A" ? imgA.bitmap : imgB.bitmap;
@@ -125,16 +208,21 @@ export function SwapCollagePreview() {
     });
   };
 
-  const onMaskTransform = (node: Konva.Rect | null) => {
+  // The mask is a single normalized rect shared by both tiles. A handle in
+  // either tile maps its position back to a per-tile fraction using that tile's
+  // own origin, so both handles drive the same state.mask.
+  const onMaskTransform = (
+    node: Konva.Rect | null,
+    origin: { x: number; y: number },
+  ) => {
     if (!node) return;
-    const origin = tiles.A; // tile A origin is always (0,0)
     dispatch({
       type: "SET_MASK",
       mask: {
         x: (node.x() - origin.x) / tiles.tileW,
         y: (node.y() - origin.y) / tiles.tileH,
-        w: node.width() * node.scaleX() / tiles.tileW,
-        h: node.height() * node.scaleY() / tiles.tileH,
+        w: (node.width() * node.scaleX()) / tiles.tileW,
+        h: (node.height() * node.scaleY()) / tiles.tileH,
       },
     });
   };
@@ -145,7 +233,6 @@ export function SwapCollagePreview() {
     otherBmp: ImageBitmap | null,
     xform: Transform,
     origin: { x: number; y: number },
-    imgRef: React.RefObject<Konva.Image | null>,
   ) => {
     const base = baseBmp
       ? placement(baseBmp.width, baseBmp.height, tiles.tileW, tiles.tileH, xform)
@@ -164,15 +251,40 @@ export function SwapCollagePreview() {
         y={origin.y}
         clip={{ x: 0, y: 0, width: tiles.tileW, height: tiles.tileH }}
       >
-        {base && (
+        {base && baseBmp ? (
           <KonvaImage
-            ref={imgRef}
-            image={baseBmp ?? undefined}
+            image={baseBmp}
             {...base}
             draggable
-            onMouseDown={() => selectSlot(slot)}
-            onDragEnd={(e) => onImageTransform(slot, e.target as Konva.Image)}
-            onTransformEnd={(e) => onImageTransform(slot, e.target as Konva.Image)}
+            onDragMove={(e) => {
+              // Konva drives the node's position itself during a drag and
+              // ignores the React x/y props until release, so clamping only
+              // in render would let the image reveal an empty edge mid-drag.
+              // Force the node back inside the cover window every move.
+              const node = e.target as Konva.Image;
+              const w = node.width() * node.scaleX();
+              const h = node.height() * node.scaleY();
+              const clamped = clampCoverPos(
+                node.x(),
+                node.y(),
+                w,
+                h,
+                tiles.tileW,
+                tiles.tileH,
+              );
+              node.x(clamped.x);
+              node.y(clamped.y);
+              onImageTransform(slot, node);
+            }}
+          />
+        ) : (
+          <Placeholder
+            tileW={tiles.tileW}
+            tileH={tiles.tileH}
+            fontSize={PLACEHOLDER_FONT_PX / scale}
+            muted={pal.muted}
+            mutedFg={pal.mutedFg}
+            onActivate={() => openPicker(slot)}
           />
         )}
         {overlay && otherBmp && (
@@ -184,77 +296,108 @@ export function SwapCollagePreview() {
     );
   };
 
-  const bothReady = imgA.status === "ready" && imgB.status === "ready";
-
   return (
     <div
       ref={containerRef}
       className="flex h-full w-full items-center justify-center"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={onDropFile}
     >
-      {!bothReady ? (
-        <div className="flex h-full w-full gap-2">
-          <ImageDropzone
-            status={imgA.status}
-            error={imgA.error}
-            onFile={(f) => loadImage("A", f)}
-          />
-          <ImageDropzone
-            status={imgB.status}
-            error={imgB.error}
-            onFile={(f) => loadImage("B", f)}
-          />
-        </div>
-      ) : (
-        <Stage
-          ref={stageRef as unknown as React.Ref<Konva.Stage>}
-          width={dispW}
-          height={dispH}
-          scaleX={scale}
-          scaleY={scale}
-          onMouseDown={(e) => {
-            if (e.target === e.target.getStage()) deselect();
-          }}
-        >
-          <Layer>
-            {renderTile("A", imgA.bitmap, imgB.bitmap, state.xformA, tiles.A, imgARef)}
-            {renderTile("B", imgB.bitmap, imgA.bitmap, state.xformB, tiles.B, imgBRef)}
-          </Layer>
+      <Stage
+        ref={stageRef as unknown as React.Ref<Konva.Stage>}
+        width={dispW}
+        height={dispH}
+        scaleX={scale}
+        scaleY={scale}
+      >
+        <Layer>
+          {renderTile("A", imgA.bitmap, imgB.bitmap, state.xformA, tiles.A)}
+          {renderTile("B", imgB.bitmap, imgA.bitmap, state.xformB, tiles.B)}
+        </Layer>
 
-          {/* Mask handle — invisible, but still selectable/draggable/resizable.
-              The swap region shows through the image content itself, so a border
-              was just clutter. A transparent fill keeps the whole rectangle
-              hit-testable via Konva's hit graph. Top layer, unclipped, canvas coords. */}
-          <Layer>
+        {/* Mask handle — invisible, but still selectable/draggable/resizable.
+            The swap region shows through the image content itself, so a border
+            was just clutter. A transparent fill keeps the whole rectangle
+            hit-testable via Konva's hit graph. Top layer, unclipped, canvas coords. */}
+        <Layer>
+          {/* Swap-area guide: a dashed outline of the swap window, shown only in
+              a tile whose own image is still missing. A filled tile already
+              reveals the swap through its content, so the guide is redundant
+              there. Visual only (listening=false) — the handle below owns
+              interaction. */}
+          {imgA.status !== "ready" && (
             <Rect
-              ref={maskARef}
               name="overlay"
               x={tiles.A.x + maskPx.x}
               y={tiles.A.y + maskPx.y}
               width={maskPx.w}
               height={maskPx.h}
-              fill="rgba(0,0,0,0)"
-              draggable
-              onMouseDown={selectMask}
-              onDragEnd={(e) => onMaskTransform(e.target as Konva.Rect)}
-              onTransformEnd={(e) => onMaskTransform(e.target as Konva.Rect)}
+              stroke={pal.mutedFg}
+              strokeWidth={GUIDE_STROKE_PX / scale}
+              dash={GUIDE_DASH_PX.map((d) => d / scale)}
+              listening={false}
             />
-          </Layer>
-
-          <Layer>
-            <Transformer
-              ref={trRef as unknown as React.Ref<Konva.Transformer>}
+          )}
+          {imgB.status !== "ready" && (
+            <Rect
               name="overlay"
-              rotateEnabled={false}
-              flipEnabled={false}
-              boundBoxFunc={(_oldBox, newBox) => {
-                // min size guard for the mask; images keep ratio via keepRatio
-                if (newBox.width < 10 || newBox.height < 10) return _oldBox;
-                return newBox;
-              }}
+              x={tiles.B.x + maskPx.x}
+              y={tiles.B.y + maskPx.y}
+              width={maskPx.w}
+              height={maskPx.h}
+              stroke={pal.mutedFg}
+              strokeWidth={GUIDE_STROKE_PX / scale}
+              dash={GUIDE_DASH_PX.map((d) => d / scale)}
+              listening={false}
             />
-          </Layer>
-        </Stage>
-      )}
+          )}
+          <Rect
+            name="overlay"
+            x={tiles.A.x + maskPx.x}
+            y={tiles.A.y + maskPx.y}
+            width={maskPx.w}
+            height={maskPx.h}
+            fill="rgba(0,0,0,0)"
+            draggable
+            onDragMove={(e) => onMaskTransform(e.target as Konva.Rect, tiles.A)}
+          />
+          {/* Mirror handle in tile B — same normalized mask, drives state.mask
+              via tile B's own origin. Transparent fill keeps it hit-testable. */}
+          <Rect
+            name="overlay"
+            x={tiles.B.x + maskPx.x}
+            y={tiles.B.y + maskPx.y}
+            width={maskPx.w}
+            height={maskPx.h}
+            fill="rgba(0,0,0,0)"
+            draggable
+            onDragMove={(e) => onMaskTransform(e.target as Konva.Rect, tiles.B)}
+          />
+        </Layer>
+      </Stage>
+
+      {/* Hidden pickers backing the placeholder click affordance. */}
+      <input
+        ref={fileARef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onPickFile("A")}
+      />
+      <input
+        ref={fileBRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onPickFile("B")}
+      />
+
+      {/* Sentinel: wears the muted classes so we can read resolved theme colors. */}
+      <div
+        ref={sentinelRef}
+        aria-hidden
+        className="bg-muted text-muted-foreground pointer-events-none absolute h-0 w-0 opacity-0"
+      />
     </div>
   );
 }

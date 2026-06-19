@@ -40,7 +40,7 @@ export function StudioShell() {
     <Provider>
       <SidebarProvider>
         <SidebarLeft />
-        <SidebarInset>
+        <SidebarInset className="min-w-0">
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger />
             <Separator
@@ -63,7 +63,7 @@ export function StudioShell() {
             <ModeToggle className="ml-auto" />
           </header>
 
-          <div className="flex flex-1 items-center justify-center overflow-auto p-4">
+          <div className="flex min-w-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8 lg:p-16">
             <Preview />
           </div>
         </SidebarInset>

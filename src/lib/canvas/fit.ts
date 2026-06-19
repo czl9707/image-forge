@@ -20,3 +20,25 @@ export function coverFit(
   const drawH = ih * scale;
   return { scale, x: (boxW - drawW) / 2, y: (boxH - drawH) / 2 };
 }
+
+/**
+ * Clamp an image's top-left (x, y) so a (width × height) image always fully
+ * covers a (tileW × tileH) tile. For full coverage the top-left must satisfy
+ * `tileW - width <= x <= 0` (and likewise for y): x <= 0 keeps the left edge
+ * past the tile's left, x + width >= tileW keeps the right edge past the tile's
+ * right. Requires width >= tileW (i.e. a cover-fit or zoomed-in image); when
+ * the image is smaller than the tile on an axis the image is centered there.
+ */
+export function clampCoverPos(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  tileW: number,
+  tileH: number,
+): { x: number; y: number } {
+  return {
+    x: width >= tileW ? Math.min(Math.max(x, tileW - width), 0) : (tileW - width) / 2,
+    y: height >= tileH ? Math.min(Math.max(y, tileH - height), 0) : (tileH - height) / 2,
+  };
+}

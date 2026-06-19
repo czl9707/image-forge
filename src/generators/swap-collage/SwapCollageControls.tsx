@@ -21,8 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { AspectId, Orientation } from "./swapReducer";
+import { MASK_MIN } from "./swapReducer";
+import type { AspectId, Orientation, Slot } from "./swapReducer";
 
 function SlotRow({
   label,
@@ -52,6 +54,78 @@ function SlotRow({
         <Button variant="ghost" size="sm" onClick={onClear}>
           <Trash2 /> Clear
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function ZoomControls({
+  slot,
+  zoom,
+  onChange,
+}: {
+  slot: Slot;
+  zoom: number;
+  onChange: (zoom: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <Label>Zoom ({slot})</Label>
+        <span className="text-xs text-muted-foreground">
+          {zoom.toFixed(2)}×
+        </span>
+      </div>
+      <Slider
+        value={[zoom]}
+        min={1}
+        max={4}
+        step={0.01}
+        onValueChange={([v]) => onChange(v)}
+      />
+    </div>
+  );
+}
+
+function MaskSizeControls({
+  width,
+  height,
+  onWidth,
+  onHeight,
+}: {
+  width: number;
+  height: number;
+  onWidth: (w: number) => void;
+  onHeight: (h: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <Label>Swap size</Label>
+      <div className="flex flex-col gap-1">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Width</span>
+          <span>{Math.round(width * 100)}%</span>
+        </div>
+        <Slider
+          value={[width]}
+          min={MASK_MIN}
+          max={1}
+          step={0.01}
+          onValueChange={([v]) => onWidth(v)}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Height</span>
+          <span>{Math.round(height * 100)}%</span>
+        </div>
+        <Slider
+          value={[height]}
+          min={MASK_MIN}
+          max={1}
+          step={0.01}
+          onValueChange={([v]) => onHeight(v)}
+        />
       </div>
     </div>
   );
@@ -93,6 +167,42 @@ export function SwapCollageControls() {
         onClear={() => clearImage("B")}
       />
       <input ref={fileB} type="file" accept="image/*" hidden onChange={onPick("B")} />
+
+      {/* Sizing lives here, not on the canvas: a zoom slider per loaded image
+          (zoom is a scalar), and width/height for the shared swap box. The
+          canvas is position-only — see SwapCollagePreview. */}
+      {imgA.status === "ready" && (
+        <ZoomControls
+          slot="A"
+          zoom={state.xformA.zoom}
+          onChange={(z) =>
+            dispatch({
+              type: "SET_XFORM",
+              slot: "A",
+              xform: { ...state.xformA, zoom: z },
+            })
+          }
+        />
+      )}
+      {imgB.status === "ready" && (
+        <ZoomControls
+          slot="B"
+          zoom={state.xformB.zoom}
+          onChange={(z) =>
+            dispatch({
+              type: "SET_XFORM",
+              slot: "B",
+              xform: { ...state.xformB, zoom: z },
+            })
+          }
+        />
+      )}
+      <MaskSizeControls
+        width={state.mask.w}
+        height={state.mask.h}
+        onWidth={(w) => dispatch({ type: "SET_MASK", mask: { ...state.mask, w } })}
+        onHeight={(h) => dispatch({ type: "SET_MASK", mask: { ...state.mask, h } })}
+      />
 
       <div className="flex flex-col gap-2">
         <Label>Orientation</Label>
