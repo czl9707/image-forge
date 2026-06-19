@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MASK_MIN } from "./swapReducer";
-import type { AspectId, Orientation, Slot } from "./swapReducer";
+import type { AspectId, Orientation } from "./swapReducer";
 
 /** A control label: smaller and lighter than an accordion section title, to
  *  keep a clear visual hierarchy (section > control > value). */
@@ -122,12 +122,10 @@ function SourceControl({
 }
 
 function ZoomControls({
-  slot,
   zoom,
   onChange,
   disabled,
 }: {
-  slot: Slot;
   zoom: number;
   onChange: (zoom: number) => void;
   disabled?: boolean;
@@ -135,8 +133,8 @@ function ZoomControls({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <FieldLabel>Zoom ({slot})</FieldLabel>
-        <span className="text-xs text-muted-foreground">{zoom.toFixed(2)}×</span>
+        <FieldLabel>Zoom</FieldLabel>
+        <span className="text-xs text-muted-foreground">{zoom.toFixed(2)}x</span>
       </div>
       <Slider
         value={[zoom]}
@@ -251,7 +249,7 @@ export function SwapCollageControls() {
       <Accordion
         type="multiple"
         defaultValue={["image-a", "image-b", "layout", "export"]}
-        className="flex-1 min-h-0 overflow-auto"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none"
       >
         <AccordionItem value="image-a">
           <AccordionTrigger>Image A</AccordionTrigger>
@@ -268,7 +266,6 @@ export function SwapCollageControls() {
                 image (zoom is a scalar), and width/height for the shared swap
                 box. The canvas is position-only — see SwapCollagePreview. */}
             <ZoomControls
-              slot="A"
               zoom={state.xformA.zoom}
               disabled={imgA.status !== "ready"}
               onChange={(z) =>
@@ -294,7 +291,6 @@ export function SwapCollageControls() {
             />
             <input ref={fileB} type="file" accept="image/*" hidden onChange={onPick("B")} />
             <ZoomControls
-              slot="B"
               zoom={state.xformB.zoom}
               disabled={imgB.status !== "ready"}
               onChange={(z) =>
@@ -328,7 +324,7 @@ export function SwapCollageControls() {
                   })
                 }
               >
-                <TabsList>
+                <TabsList className="w-full">
                   <TabsTrigger value="lr">
                     <Columns2 /> Left/Right
                   </TabsTrigger>
@@ -346,7 +342,7 @@ export function SwapCollageControls() {
                   dispatch({ type: "SET_ASPECT", aspect: v as AspectId })
                 }
               >
-                <TabsList>
+                <TabsList className="w-full">
                   <TabsTrigger value="square">
                     <Square /> Square
                   </TabsTrigger>
@@ -373,7 +369,7 @@ export function SwapCollageControls() {
                   dispatch({ type: "SET_EXPORT_SIZE", size: Number(v) })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -385,7 +381,7 @@ export function SwapCollageControls() {
             <div className="flex flex-col gap-2">
               <FieldLabel>Format</FieldLabel>
               <Tabs value={format} onValueChange={(v) => setFormat(v as ExportFormat)}>
-                <TabsList>
+                <TabsList className="w-full">
                   <TabsTrigger value="png">PNG</TabsTrigger>
                   <TabsTrigger value="jpg">JPG</TabsTrigger>
                 </TabsList>
