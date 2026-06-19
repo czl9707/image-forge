@@ -181,6 +181,9 @@ export function SwapCollageControls() {
               onClear={() => clearImage("A")}
             />
             <input ref={fileA} type="file" accept="image/*" hidden onChange={onPick("A")} />
+            {/* Sizing lives here, not on the canvas: a zoom slider per loaded
+                image (zoom is a scalar), and width/height for the shared swap
+                box. The canvas is position-only — see SwapCollagePreview. */}
             <ZoomControls
               slot="A"
               zoom={state.xformA.zoom}
