@@ -168,7 +168,7 @@ export function SwapCollageControls() {
       <Accordion
         type="multiple"
         defaultValue={["image-a", "image-b", "layout", "export"]}
-        className="flex-1 overflow-auto"
+        className="flex-1 min-h-0 overflow-auto"
       >
         <AccordionItem value="image-a">
           <AccordionTrigger>Image A</AccordionTrigger>
