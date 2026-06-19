@@ -34,6 +34,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MASK_MIN } from "./swapReducer";
 import type { AspectId, Orientation } from "./swapReducer";
+import { FilterStackControls } from "@/components/filters/FilterStackControls";
 
 /** A control label: smaller and lighter than an accordion section title, to
  *  keep a clear visual hierarchy (section > control > value). */
@@ -271,6 +272,14 @@ export function SwapCollageControls() {
                 })
               }
             />
+            <div className="flex flex-col gap-2">
+              <FieldLabel>Filters</FieldLabel>
+              <FilterStackControls
+                stack={state.filtersA}
+                onChange={(f) => dispatch({ type: "SET_FILTERS", slot: "A", filters: f })}
+                disabled={imgA.status !== "ready"}
+              />
+            </div>
           </AccordionContent>
         </AccordionItem>
 
@@ -296,6 +305,14 @@ export function SwapCollageControls() {
                 })
               }
             />
+            <div className="flex flex-col gap-2">
+              <FieldLabel>Filters</FieldLabel>
+              <FilterStackControls
+                stack={state.filtersB}
+                onChange={(f) => dispatch({ type: "SET_FILTERS", slot: "B", filters: f })}
+                disabled={imgB.status !== "ready"}
+              />
+            </div>
           </AccordionContent>
         </AccordionItem>
 

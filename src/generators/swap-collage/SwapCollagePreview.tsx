@@ -9,7 +9,6 @@ import {
 } from "react";
 import {
   Group,
-  Image as KonvaImage,
   Layer,
   Rect,
   Stage,
@@ -22,6 +21,7 @@ import { canvasDims, containFit, tileLayout } from "./dimensions";
 import { clampCoverPos, coverFit } from "@/lib/canvas/fit";
 import { toPixels } from "@/lib/geometry";
 import type { Slot, Transform } from "./swapReducer";
+import { FilteredImage } from "@/components/filters/FilteredImage";
 
 interface Placement {
   x: number;
@@ -248,7 +248,8 @@ export function SwapCollagePreview() {
         clip={{ x: 0, y: 0, width: tiles.tileW, height: tiles.tileH }}
       >
         {base && baseBmp ? (
-          <KonvaImage
+          <FilteredImage
+            stack={slot === "A" ? state.filtersA : state.filtersB}
             image={baseBmp}
             {...base}
             draggable
@@ -285,7 +286,12 @@ export function SwapCollagePreview() {
         )}
         {overlay && otherBmp && (
           <Group clip={{ x: maskPx.x, y: maskPx.y, width: maskPx.w, height: maskPx.h }}>
-            <KonvaImage image={otherBmp} {...overlay} listening={false} />
+            <FilteredImage
+              stack={slot === "A" ? state.filtersB : state.filtersA}
+              image={otherBmp}
+              {...overlay}
+              listening={false}
+            />
           </Group>
         )}
       </Group>
