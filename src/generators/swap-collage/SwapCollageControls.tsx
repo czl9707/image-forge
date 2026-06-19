@@ -144,40 +144,38 @@ function ZoomControls({
   );
 }
 
-/** A swap-size dimension: drag the slider OR type a pixel value (clamped to the
- *  mask-min..tile size). The field is uncontrolled and keyed on `value`, so it
- *  reflects the slider without a sync-effect; typing commits on blur/Enter. */
+/** A swap-size dimension in px: drag the slider OR type a whole-pixel value
+ *  (clamped to the tile dimension, at least MASK_MIN of it). The field is
+ *  uncontrolled and keyed on the px value — typing commits on blur/Enter, and a
+ *  slider drag remounts the field to reflect the new size. `value` is the
+ *  normalized [0,1] mask fraction; `maxPx` is the tile dimension in export px. */
 function DimensionSlider({
   label,
   value,
-  pxMax,
+  maxPx,
   onChange,
 }: {
   label: string;
-  value: number; // normalized [MASK_MIN, 1]
-  pxMax: number; // tile dimension in px (value * pxMax = shown px)
+  value: number;
+  maxPx: number;
   onChange: (v: number) => void;
 }) {
-  const minPx = Math.max(1, Math.round(MASK_MIN * pxMax));
+  const minPx = Math.max(1, Math.round(MASK_MIN * maxPx));
+  const px = Math.round(value * maxPx);
   const commit = (raw: string) => {
     const n = Math.round(Number(raw));
-    const clamped = Number.isFinite(n)
-      ? Math.min(pxMax, Math.max(minPx, n))
-      : minPx;
-    onChange(clamped / pxMax);
+    const clamped = Number.isFinite(n) ? Math.min(maxPx, Math.max(minPx, n)) : minPx;
+    onChange(clamped / maxPx);
   };
-
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
         <FieldLabel>{label}</FieldLabel>
         <div className="flex items-center gap-1">
           <Input
-            key={value}
-            defaultValue={String(Math.round(value * pxMax))}
+            key={px}
+            defaultValue={String(px)}
             inputMode="numeric"
-            min={minPx}
-            max={pxMax}
             className="h-7 w-16 text-right"
             onBlur={(e) => commit((e.target as HTMLInputElement).value)}
             onKeyDown={(e) => {
@@ -188,11 +186,11 @@ function DimensionSlider({
         </div>
       </div>
       <Slider
-        value={[value]}
-        min={MASK_MIN}
-        max={1}
-        step={0.01}
-        onValueChange={([v]) => onChange(v)}
+        value={[px]}
+        min={minPx}
+        max={maxPx}
+        step={1}
+        onValueChange={([v]) => onChange(v / maxPx)}
       />
     </div>
   );
@@ -201,22 +199,22 @@ function DimensionSlider({
 function MaskSizeControls({
   width,
   height,
-  tileW,
-  tileH,
+  maxW,
+  maxH,
   onWidth,
   onHeight,
 }: {
   width: number;
   height: number;
-  tileW: number;
-  tileH: number;
+  maxW: number;
+  maxH: number;
   onWidth: (w: number) => void;
   onHeight: (h: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <DimensionSlider label="Swap Width" value={width} pxMax={tileW} onChange={onWidth} />
-      <DimensionSlider label="Swap Height" value={height} pxMax={tileH} onChange={onHeight} />
+      <DimensionSlider label="Swap Width" value={width} maxPx={maxW} onChange={onWidth} />
+      <DimensionSlider label="Swap Height" value={height} maxPx={maxH} onChange={onHeight} />
     </div>
   );
 }
@@ -230,10 +228,6 @@ export function SwapCollageControls() {
 
   const bothReady = imgA.status === "ready" && imgB.status === "ready";
 
-  // Tile px at export resolution, so the swap-size fields can show real px.
-  const dims = canvasDims(state.aspect, state.orientation, state.exportSize);
-  const tiles = tileLayout(state.orientation, dims);
-
   const onPick = (slot: "A" | "B") => (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) loadImage(slot, f);
@@ -241,6 +235,10 @@ export function SwapCollageControls() {
   };
 
   const onExport = () => exportImage(format);
+
+  // Tile pixel dims (at export resolution) so the swap-size fields can show px.
+  const dims = canvasDims(state.aspect, state.orientation, state.exportSize);
+  const tiles = tileLayout(state.orientation, dims);
 
   return (
     <div className="flex h-full w-full flex-col p-4">
@@ -324,8 +322,8 @@ export function SwapCollageControls() {
             <MaskSizeControls
               width={state.mask.w}
               height={state.mask.h}
-              tileW={tiles.tileW}
-              tileH={tiles.tileH}
+              maxW={tiles.tileW}
+              maxH={tiles.tileH}
               onWidth={(w) => dispatch({ type: "SET_MASK", mask: { ...state.mask, w } })}
               onHeight={(h) => dispatch({ type: "SET_MASK", mask: { ...state.mask, h } })}
             />

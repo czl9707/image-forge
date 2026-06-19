@@ -26,9 +26,9 @@ describe("swapReducer", () => {
     };
     const after = swapReducer(
       swapReducer(initialSwapState, moved),
-      { type: "SET_ORIENTATION", orientation: "tb" } as SwapAction,
+      { type: "SET_ORIENTATION", orientation: "lr" } as SwapAction,
     );
-    expect(after.orientation).toBe("tb");
+    expect(after.orientation).toBe("lr");
     expect(after.xformA.zoom).toBe(1); // reset
     expect(after.xformA.panX).toBe(0);
   });
