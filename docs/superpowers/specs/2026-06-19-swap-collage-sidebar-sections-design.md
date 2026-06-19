@@ -17,7 +17,7 @@ Group the existing controls into four collapsible accordion sections, plus a sti
 |---|---|
 | **Image A** | Replace / Clear + zoom slider |
 | **Image B** | Replace / Clear + zoom slider |
-| **Layout** | Orientation, Aspect, Swap size, **Reset mask** |
+| **Layout** | Orientation, Aspect, Swap size |
 | **Export** | Export size, Format |
 | *(outside accordions)* | **Export** button, sticky at the bottom |
 
@@ -27,8 +27,8 @@ Image A and Image B are kept as **separate** accordions (not merged) because eac
 
 - **Multiple-open accordion** (shadcn `Accordion type="multiple"`): each section toggles independently; opening one does not close the others. A tool you return to repeatedly shouldn't force re-expansion.
 - **All sections open by default.** Collapse is for reducing noise once focused, not the resting state.
-- **Reset mask** moves inside Layout, next to Swap size — it is contextually a mask/layout control, not a standalone action.
 - **Export button** stays outside the accordions, pinned at the bottom of the sidebar so it is always reachable without scrolling or expanding.
+- **Reset mask button is removed** — it's no longer needed. The now-orphaned `RESET_MASK` reducer action and any test covering it become dead code and should be cleaned up as part of this work.
 
 ### Component
 
@@ -37,8 +37,8 @@ Image A and Image B are kept as **separate** accordions (not merged) because eac
 
 ### What does not change
 
-- Every `dispatch` call, every prop, the clamp/zoom/cover behavior — untouched.
-- `SwapCollagePreview.tsx`, `swapReducer.ts`, `dimensions.ts`, `fit.ts` — untouched.
+- Every remaining `dispatch` call, every prop, the clamp/zoom/cover behavior — untouched.
+- `SwapCollagePreview.tsx`, `dimensions.ts`, `fit.ts` — untouched. `swapReducer.ts` loses only the dead `RESET_MASK` action (and its test).
 - `SidebarRight` shell and width — unchanged.
 
 ## Testing
