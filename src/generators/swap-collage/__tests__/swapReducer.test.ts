@@ -10,19 +10,26 @@ import {
 describe("swapReducer", () => {
   it("has the expected initial state", () => {
     expect(initialSwapState.orientation).toBe("lr");
-    expect(initialSwapState.aspect).toBe("landscape");
+    expect(initialSwapState.aspect).toBe("16:9");
     expect(initialSwapState.exportSize).toBe(1080);
     expect(initialSwapState.mask).toEqual(DEFAULT_MASK);
     expect(initialSwapState.xformA.zoom).toBe(1);
     expect(initialSwapState.selection).toBeNull();
   });
 
-  it("sets orientation", () => {
-    const s = swapReducer(initialSwapState, {
-      type: "SET_ORIENTATION",
-      orientation: "tb",
-    } as SwapAction);
-    expect(s.orientation).toBe("tb");
+  it("sets orientation AND re-fits both images (canvas rotated)", () => {
+    const moved: SwapAction = {
+      type: "SET_XFORM",
+      slot: "A",
+      xform: { panX: 0.5, panY: 0.5, zoom: 2 },
+    };
+    const after = swapReducer(
+      swapReducer(initialSwapState, moved),
+      { type: "SET_ORIENTATION", orientation: "tb" } as SwapAction,
+    );
+    expect(after.orientation).toBe("tb");
+    expect(after.xformA.zoom).toBe(1); // reset
+    expect(after.xformA.panX).toBe(0);
   });
 
   it("changes aspect AND re-fits both images", () => {
@@ -33,9 +40,9 @@ describe("swapReducer", () => {
     };
     const after = swapReducer(
       swapReducer(initialSwapState, moved),
-      { type: "SET_ASPECT", aspect: "square" } as SwapAction,
+      { type: "SET_ASPECT", aspect: "1:1" } as SwapAction,
     );
-    expect(after.aspect).toBe("square");
+    expect(after.aspect).toBe("1:1");
     expect(after.xformA.zoom).toBe(1); // reset
     expect(after.xformA.panX).toBe(0);
   });
@@ -73,6 +80,20 @@ describe("swapReducer", () => {
       selection: "mask",
     } as SwapAction);
     expect(s.selection).toBe("mask");
+  });
+
+  it("resets a slot's transform to identity", () => {
+    const moved: SwapAction = {
+      type: "SET_XFORM",
+      slot: "B",
+      xform: { panX: 0.3, panY: 0.4, zoom: 2.5 },
+    };
+    const s = swapReducer(
+      swapReducer(initialSwapState, moved),
+      { type: "RESET_XFORM", slot: "B" } as SwapAction,
+    );
+    expect(s.xformB).toEqual({ panX: 0, panY: 0, zoom: 1 });
+    expect(s.xformA.zoom).toBe(1); // untouched
   });
 
 });

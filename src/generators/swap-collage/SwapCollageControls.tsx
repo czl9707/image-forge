@@ -6,10 +6,7 @@ import {
   Download,
   Image as ImageIcon,
   Loader2,
-  RectangleHorizontal,
-  RectangleVertical,
   Rows2,
-  Square,
   Upload,
   X,
 } from "lucide-react";
@@ -181,7 +178,6 @@ function DimensionSlider({
         <FieldLabel>{label}</FieldLabel>
         <div className="flex items-center gap-1">
           <Input
-            type="number"
             inputMode="numeric"
             min={MIN_PCT}
             max={100}
@@ -220,9 +216,8 @@ function MaskSizeControls({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <FieldLabel>Swap size</FieldLabel>
-      <DimensionSlider label="Width" value={width} onChange={onWidth} />
-      <DimensionSlider label="Height" value={height} onChange={onHeight} />
+      <DimensionSlider label="Swap Width" value={width} onChange={onWidth} />
+      <DimensionSlider label="Swap Height" value={height} onChange={onHeight} />
     </div>
   );
 }
@@ -248,7 +243,7 @@ export function SwapCollageControls() {
     <div className="flex h-full w-full flex-col p-4">
       <Accordion
         type="multiple"
-        defaultValue={["image-a", "image-b", "layout", "export"]}
+        defaultValue={["image-a", "image-b"]}
         className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none"
       >
         <AccordionItem value="image-a">
@@ -343,15 +338,9 @@ export function SwapCollageControls() {
                 }
               >
                 <TabsList className="w-full">
-                  <TabsTrigger value="square">
-                    <Square /> Square
-                  </TabsTrigger>
-                  <TabsTrigger value="landscape">
-                    <RectangleHorizontal /> 16:9
-                  </TabsTrigger>
-                  <TabsTrigger value="portrait">
-                    <RectangleVertical /> 9:16
-                  </TabsTrigger>
+                  <TabsTrigger value="16:9">16:9</TabsTrigger>
+                  <TabsTrigger value="4:3">4:3</TabsTrigger>
+                  <TabsTrigger value="1:1">1:1</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>

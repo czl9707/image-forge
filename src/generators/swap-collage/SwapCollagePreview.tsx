@@ -1,5 +1,6 @@
 // src/generators/swap-collage/SwapCollagePreview.tsx
 import {
+  Fragment,
   useEffect,
   useRef,
   useState,
@@ -156,7 +157,7 @@ export function SwapCollagePreview() {
     return () => ro.disconnect();
   }, []);
 
-  const dims = canvasDims(state.aspect, state.exportSize);
+  const dims = canvasDims(state.aspect, state.orientation, state.exportSize);
   const tiles = tileLayout(state.orientation, dims);
   const { dispW, dispH, scale } = containFit(
     dims.cw,
@@ -187,15 +188,10 @@ export function SwapCollagePreview() {
     if (!rect) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const slot: Slot =
-      state.orientation === "lr"
-        ? x < rect.width / 2
-          ? "A"
-          : "B"
-        : y < rect.height / 2
-          ? "A"
-          : "B";
-    loadImage(slot, file);
+    // Split on the midline of whichever axis the orientation stacks along.
+    const beforeMid =
+      state.orientation === "lr" ? x < rect.width / 2 : y < rect.height / 2;
+    loadImage(beforeMid ? "A" : "B", file);
   };
 
   const onImageTransform = (slot: Slot, node: Konva.Image | null) => {
@@ -315,64 +311,49 @@ export function SwapCollagePreview() {
           {renderTile("B", imgB.bitmap, imgA.bitmap, state.xformB, tiles.B)}
         </Layer>
 
-        {/* Mask handle — invisible, but still selectable/draggable/resizable.
-            The swap region shows through the image content itself, so a border
-            was just clutter. A transparent fill keeps the whole rectangle
-            hit-testable via Konva's hit graph. Top layer, unclipped, canvas coords. */}
+        {/* Mask guides + handles. Top layer, unclipped, canvas coords. */}
         <Layer>
-          {/* Swap-area guide: a dashed outline of the swap window, shown only in
-              a tile whose own image is still missing. A filled tile already
-              reveals the swap through its content, so the guide is redundant
-              there. Visual only (listening=false) — the handle below owns
-              interaction. */}
-          {imgA.status !== "ready" && (
-            <Rect
-              name="overlay"
-              x={tiles.A.x + maskPx.x}
-              y={tiles.A.y + maskPx.y}
-              width={maskPx.w}
-              height={maskPx.h}
-              stroke={pal.mutedFg}
-              strokeWidth={GUIDE_STROKE_PX / scale}
-              dash={GUIDE_DASH_PX.map((d) => d / scale)}
-              listening={false}
-            />
+          {/* Each tile gets two overlay nodes — a guide and a handle — both
+              tagged `name="overlay"` so exportImage can hide them for the
+              snapshot. The guide is a dashed outline of the swap window shown
+              only while a tile's own image is still missing (a filled tile
+              already reveals the swap through its content). The handle is an
+              invisible, draggable rect that maps its position back into the
+              shared normalized mask via its tile's origin. */}
+          {([["A", imgA.status], ["B", imgB.status]] as const).map(
+            ([slot, status]) => {
+              const origin = slot === "A" ? tiles.A : tiles.B;
+              return (
+                <Fragment key={slot}>
+                  {status !== "ready" && (
+                    <Rect
+                      name="overlay"
+                      x={origin.x + maskPx.x}
+                      y={origin.y + maskPx.y}
+                      width={maskPx.w}
+                      height={maskPx.h}
+                      stroke={pal.mutedFg}
+                      strokeWidth={GUIDE_STROKE_PX / scale}
+                      dash={GUIDE_DASH_PX.map((d) => d / scale)}
+                      listening={false}
+                    />
+                  )}
+                  <Rect
+                    name="overlay"
+                    x={origin.x + maskPx.x}
+                    y={origin.y + maskPx.y}
+                    width={maskPx.w}
+                    height={maskPx.h}
+                    fill="rgba(0,0,0,0)"
+                    draggable
+                    onDragMove={(e) =>
+                      onMaskTransform(e.target as Konva.Rect, origin)
+                    }
+                  />
+                </Fragment>
+              );
+            },
           )}
-          {imgB.status !== "ready" && (
-            <Rect
-              name="overlay"
-              x={tiles.B.x + maskPx.x}
-              y={tiles.B.y + maskPx.y}
-              width={maskPx.w}
-              height={maskPx.h}
-              stroke={pal.mutedFg}
-              strokeWidth={GUIDE_STROKE_PX / scale}
-              dash={GUIDE_DASH_PX.map((d) => d / scale)}
-              listening={false}
-            />
-          )}
-          <Rect
-            name="overlay"
-            x={tiles.A.x + maskPx.x}
-            y={tiles.A.y + maskPx.y}
-            width={maskPx.w}
-            height={maskPx.h}
-            fill="rgba(0,0,0,0)"
-            draggable
-            onDragMove={(e) => onMaskTransform(e.target as Konva.Rect, tiles.A)}
-          />
-          {/* Mirror handle in tile B — same normalized mask, drives state.mask
-              via tile B's own origin. Transparent fill keeps it hit-testable. */}
-          <Rect
-            name="overlay"
-            x={tiles.B.x + maskPx.x}
-            y={tiles.B.y + maskPx.y}
-            width={maskPx.w}
-            height={maskPx.h}
-            fill="rgba(0,0,0,0)"
-            draggable
-            onDragMove={(e) => onMaskTransform(e.target as Konva.Rect, tiles.B)}
-          />
         </Layer>
       </Stage>
 

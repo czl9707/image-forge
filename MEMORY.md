@@ -1,0 +1,1 @@
+- [shadcn CLI for components](shadcn-cli-for-components.md) — install UI components via `npx shadcn add`, never hand-write them

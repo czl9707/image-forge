@@ -6,16 +6,23 @@ export interface Dims {
   ch: number;
 }
 
-/** Logical canvas size from aspect + long-edge export size. */
-export function canvasDims(aspect: AspectId, longEdge: number): Dims {
-  switch (aspect) {
-    case "square":
-      return { cw: longEdge, ch: longEdge };
-    case "landscape":
-      return { cw: longEdge, ch: Math.round((longEdge * 9) / 16) };
-    case "portrait":
-      return { cw: Math.round((longEdge * 9) / 16), ch: longEdge };
-  }
+/** Logical canvas size from aspect (a shape) + orientation + long-edge export
+ *  size. Aspect is a ratio shape expressed landscape; Top/Bottom orientation
+ *  rotates the canvas to its portrait form (w/h swapped). Square is symmetric. */
+export function canvasDims(
+  aspect: AspectId,
+  orientation: Orientation,
+  longEdge: number,
+): Dims {
+  const base =
+    aspect === "1:1"
+      ? { cw: longEdge, ch: longEdge }
+      : aspect === "4:3"
+        ? { cw: longEdge, ch: Math.round((longEdge * 3) / 4) }
+        : { cw: longEdge, ch: Math.round((longEdge * 9) / 16) }; // "16:9"
+  return orientation === "tb"
+    ? { cw: base.ch, ch: base.cw }
+    : { cw: base.cw, ch: base.ch };
 }
 
 export interface TileLayout {

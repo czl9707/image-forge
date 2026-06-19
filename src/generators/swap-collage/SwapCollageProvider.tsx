@@ -52,8 +52,13 @@ export function SwapCollageProvider({ children }: { children: ReactNode }) {
 
   const loadImage = (slot: Slot, file: File) =>
     slot === "A" ? a.load(file) : b.load(file);
-  const clearImage = (slot: Slot) =>
-    slot === "A" ? a.reset() : b.reset();
+  const clearImage = (slot: Slot) => {
+    if (slot === "A") a.reset();
+    else b.reset();
+    // Clearing an image also resets its zoom/pan — no stale transform on a
+    // now-empty tile (and on the next image, which re-covers from identity).
+    dispatch({ type: "RESET_XFORM", slot });
+  };
 
   const exportImage = (format: ExportFormat) => {
     const stage = stageRef.current;

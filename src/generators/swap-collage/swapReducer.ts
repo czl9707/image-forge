@@ -2,7 +2,7 @@
 import { clampRect, type Rect } from "@/lib/geometry";
 
 export type Orientation = "lr" | "tb";
-export type AspectId = "square" | "landscape" | "portrait";
+export type AspectId = "16:9" | "4:3" | "1:1";
 export type Selection = "imgA" | "imgB" | "mask" | null;
 export type Slot = "A" | "B";
 
@@ -30,7 +30,7 @@ export const IDENTITY_XFORM: Transform = { panX: 0, panY: 0, zoom: 1 };
 
 export const initialSwapState: SwapState = {
   orientation: "lr",
-  aspect: "landscape",
+  aspect: "16:9",
   exportSize: 1080,
   mask: DEFAULT_MASK,
   xformA: { ...IDENTITY_XFORM },
@@ -50,7 +50,13 @@ export type SwapAction =
 export function swapReducer(state: SwapState, action: SwapAction): SwapState {
   switch (action.type) {
     case "SET_ORIENTATION":
-      return { ...state, orientation: action.orientation };
+      // Canvas rotates (lr↔tb) → tile shape changes → re-cover both images.
+      return {
+        ...state,
+        orientation: action.orientation,
+        xformA: { ...IDENTITY_XFORM },
+        xformB: { ...IDENTITY_XFORM },
+      };
     case "SET_ASPECT":
       // Window shape changed → re-cover both images.
       return {
