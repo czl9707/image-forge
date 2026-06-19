@@ -4,6 +4,7 @@ import { GripVertical, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -37,15 +38,86 @@ function newId(): string {
 /** All addable kinds, always available (duplicates allowed). */
 const ALL_KINDS = Object.keys(KIND_META) as FilterKind[];
 
+/** Display decimals implied by a slider step (1 → 0, 0.5/0.1 → 1, finer → 2). */
+function decimalsFor(step: number): number {
+  if (step >= 1) return 0;
+  if (step >= 0.1) return 1;
+  return 2;
+}
+
+/** A slider paired with an editable number field. The field is uncontrolled and
+ *  keyed on `value`: typing edits the DOM value freely and commits (clamped to
+ *  min/max) on blur/Enter; moving the slider updates `value`, which remounts the
+ *  field so it reflects the new value. This mirrors the DimensionSlider UX but
+ *  avoids a sync-effect (the set-state-in-effect anti-pattern). */
+function NumberSlider({
+  value,
+  min,
+  max,
+  step,
+  decimals,
+  suffix,
+  disabled,
+  ariaLabel,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  decimals: number;
+  suffix?: string;
+  disabled?: boolean;
+  ariaLabel: string;
+  onChange: (v: number) => void;
+}) {
+  const fmt = (n: number) => n.toFixed(decimals);
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    const clamped = Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min;
+    onChange(clamped);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Slider
+        className="flex-1"
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        onValueChange={([v]) => onChange(v)}
+      />
+      <div className="flex items-center gap-1">
+        <Input
+          key={value}
+          defaultValue={fmt(value)}
+          inputMode="numeric"
+          aria-label={ariaLabel}
+          disabled={disabled}
+          className="h-7 w-14 text-right"
+          onBlur={(e) => commit((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+        />
+        {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
 /** A row. `make` applies a stack-transforming fn to the real current stack and
  *  propagates the result via onChange. */
 function Row({
   f,
   index,
+  disabled,
   make,
 }: {
   f: FilterInstance;
   index: number;
+  disabled?: boolean;
   make: (fn: (real: FilterStack) => FilterStack) => void;
 }) {
   const meta = KIND_META[f.kind];
@@ -112,36 +184,41 @@ function Row({
 
       {isHue && hueF.colorize ? (
         <div className="flex flex-col gap-2 pl-6">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Hue</Label>
-            <span className="text-xs text-muted-foreground">{Math.round(hueF.colorHue)}°</span>
-          </div>
-          <Slider
-            value={[hueF.colorHue]}
+          <Label className="text-xs text-muted-foreground">Hue</Label>
+          <NumberSlider
+            value={hueF.colorHue}
             min={COLORIZE_HUE.min}
             max={COLORIZE_HUE.max}
             step={COLORIZE_HUE.step}
-            onValueChange={([v]) => make((real) => updateFilter(real, f.id, { colorHue: v }))}
+            decimals={0}
+            suffix="°"
+            disabled={disabled}
+            ariaLabel="Colorize hue"
+            onChange={(v) => make((real) => updateFilter(real, f.id, { colorHue: v }))}
           />
-          <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Saturation</Label>
-            <span className="text-xs text-muted-foreground">{hueF.colorSat.toFixed(2)}</span>
-          </div>
-          <Slider
-            value={[hueF.colorSat]}
+          <Label className="text-xs text-muted-foreground">Saturation</Label>
+          <NumberSlider
+            value={hueF.colorSat}
             min={COLORIZE_SAT.min}
             max={COLORIZE_SAT.max}
             step={COLORIZE_SAT.step}
-            onValueChange={([v]) => make((real) => updateFilter(real, f.id, { colorSat: v }))}
+            decimals={2}
+            disabled={disabled}
+            ariaLabel="Colorize saturation"
+            onChange={(v) => make((real) => updateFilter(real, f.id, { colorSat: v }))}
           />
         </div>
       ) : (
-        <Slider
-          value={[amountOf(f)]}
+        <NumberSlider
+          value={amountOf(f)}
           min={meta.min}
           max={meta.max}
           step={meta.step}
-          onValueChange={([v]) =>
+          decimals={decimalsFor(meta.step)}
+          suffix={isHue ? "°" : undefined}
+          disabled={disabled}
+          ariaLabel={`${meta.label} value`}
+          onChange={(v) =>
             make((real) => real.map((x) => (x.id === f.id ? withAmount(x, v) : x)))
           }
         />
@@ -171,7 +248,7 @@ export function FilterStackControls({
       )}
 
       {stack.map((f, i) => (
-        <Row key={f.id} f={f} index={i} make={make} />
+        <Row key={f.id} f={f} index={i} disabled={disabled} make={make} />
       ))}
 
       <Select

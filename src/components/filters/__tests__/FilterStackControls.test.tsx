@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { FilterStackControls } from "../FilterStackControls";
-import { DEFAULT_STACK } from "@/lib/filters";
+import { DEFAULT_STACK, makeFilter } from "@/lib/filters";
 
 describe("FilterStackControls", () => {
   it("renders a row per filter in the stack", () => {
@@ -37,5 +37,25 @@ describe("FilterStackControls", () => {
     render(<FilterStackControls stack={[]} onChange={() => {}} />);
     expect(screen.getByText(/No filters yet/i)).toBeTruthy();
     expect(screen.getByLabelText("Add filter")).toBeTruthy();
+  });
+
+  it("typing a number in the field commits that value on blur", () => {
+    const onChange = vi.fn();
+    const stack = [makeFilter("blur", "blur")];
+    render(<FilterStackControls stack={stack} onChange={onChange} />);
+    const input = screen.getByLabelText("Blur value");
+    fireEvent.change(input, { target: { value: "12" } });
+    fireEvent.blur(input);
+    expect(onChange.mock.calls[0][0][0].radius).toBe(12);
+  });
+
+  it("out-of-range input clamps to the max on commit", () => {
+    const onChange = vi.fn();
+    const stack = [makeFilter("blur", "blur")];
+    render(<FilterStackControls stack={stack} onChange={onChange} />);
+    const input = screen.getByLabelText("Blur value");
+    fireEvent.change(input, { target: { value: "999" } });
+    fireEvent.blur(input);
+    expect(onChange.mock.calls[0][0][0].radius).toBe(40);
   });
 });
