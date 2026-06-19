@@ -220,37 +220,30 @@ export function SwapCollagePreview() {
             {renderTile("B", imgB.bitmap, imgA.bitmap, state.xformB, tiles.B, imgBRef)}
           </Layer>
 
-          {/* mask UI on top, unclipped, canvas coords */}
+          {/* Mask handle — invisible, but still selectable/draggable/resizable.
+              The swap region shows through the image content itself, so a border
+              was just clutter. A transparent fill keeps the whole rectangle
+              hit-testable via Konva's hit graph. Top layer, unclipped, canvas coords. */}
           <Layer>
             <Rect
               ref={maskARef}
+              name="overlay"
               x={tiles.A.x + maskPx.x}
               y={tiles.A.y + maskPx.y}
               width={maskPx.w}
               height={maskPx.h}
-              stroke="#3b82f6"
-              strokeWidth={2 / scale}
-              dash={[8 / scale, 6 / scale]}
+              fill="rgba(0,0,0,0)"
               draggable
               onMouseDown={selectMask}
               onDragEnd={(e) => onMaskTransform(e.target as Konva.Rect)}
               onTransformEnd={(e) => onMaskTransform(e.target as Konva.Rect)}
-            />
-            <Rect
-              x={tiles.B.x + maskPx.x}
-              y={tiles.B.y + maskPx.y}
-              width={maskPx.w}
-              height={maskPx.h}
-              stroke="#3b82f6"
-              strokeWidth={2 / scale}
-              dash={[8 / scale, 6 / scale]}
-              listening={false}
             />
           </Layer>
 
           <Layer>
             <Transformer
               ref={trRef as unknown as React.Ref<Konva.Transformer>}
+              name="overlay"
               rotateEnabled={false}
               flipEnabled={false}
               boundBoxFunc={(_oldBox, newBox) => {

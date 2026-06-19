@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from "react";
 import type Konva from "konva";
+import { exportStage, type ExportFormat } from "@/export";
 import { useImageBitmap, type ImgStatus } from "@/hooks/useImageBitmap";
 import {
   initialSwapState,
@@ -37,6 +38,7 @@ export interface SwapContextValue {
   state: SwapState;
   dispatch: Dispatch<SwapAction>;
   stageRef: RefObject<Konva.Stage | null>;
+  exportImage: (format: ExportFormat) => void;
 }
 
 const SwapContext = createContext<SwapContextValue | null>(null);
@@ -52,6 +54,21 @@ export function SwapCollageProvider({ children }: { children: ReactNode }) {
   const clearImage = (slot: Slot) =>
     slot === "A" ? a.reset() : b.reset();
 
+  const exportImage = (format: ExportFormat) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    // Hide selection handles + mask guide for the snapshot so the file is
+    // chrome-free, then restore. exportStage rasterizes synchronously before its
+    // first await, and nothing repaints the stage during the async blob work, so
+    // restoring on settle never flickers on screen.
+    const overlays = stage.find<Konva.Node>(".overlay");
+    const prior = overlays.map((n) => n.visible());
+    overlays.forEach((n) => n.visible(false));
+    exportStage(stage, format).finally(() =>
+      overlays.forEach((n, i) => n.visible(prior[i])),
+    );
+  };
+
   const value: SwapContextValue = {
     imgA: { bitmap: a.bitmap, status: a.status, error: a.error },
     imgB: { bitmap: b.bitmap, status: b.status, error: b.error },
@@ -60,6 +77,7 @@ export function SwapCollageProvider({ children }: { children: ReactNode }) {
     state,
     dispatch,
     stageRef,
+    exportImage,
   };
 
   return <SwapContext.Provider value={value}>{children}</SwapContext.Provider>;

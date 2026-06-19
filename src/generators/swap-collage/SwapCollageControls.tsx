@@ -11,7 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useSwapCollage } from "./SwapCollageProvider";
-import { exportStage, type ExportFormat } from "@/export";
+import { type ExportFormat } from "@/export";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -58,7 +58,7 @@ function SlotRow({
 }
 
 export function SwapCollageControls() {
-  const { imgA, imgB, loadImage, clearImage, state, dispatch, stageRef } =
+  const { imgA, imgB, loadImage, clearImage, state, dispatch, exportImage } =
     useSwapCollage();
   const [format, setFormat] = useState<ExportFormat>("png");
   const fileA = useRef<HTMLInputElement>(null);
@@ -72,9 +72,7 @@ export function SwapCollageControls() {
     e.target.value = "";
   };
 
-  const onExport = () => {
-    if (stageRef.current) exportStage(stageRef.current, format);
-  };
+  const onExport = () => exportImage(format);
 
   return (
     <div className="flex h-full w-full flex-col gap-6 overflow-auto p-4">
