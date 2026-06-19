@@ -1,24 +1,18 @@
 // src/lib/canvas/fit.ts
-export interface Fit {
-  scale: number;
-  x: number;
-  y: number;
-}
 
 /**
- * Cover-fit: scale an (iw × ih) image so it fully covers a (boxW × boxH) box,
- * centered. Returns the uniform scale and the centered top-left position.
+ * Cover-fit: scale an (iw × ih) image so it fully covers a (boxW × boxH) box.
+ * Returns the uniform scale only. Centering/panning is the caller's job — the
+ * swap-collage layout clamps the position to the cover window separately.
  */
 export function coverFit(
   iw: number,
   ih: number,
   boxW: number,
   boxH: number,
-): Fit {
+): { scale: number } {
   const scale = Math.max(boxW / iw, boxH / ih);
-  const drawW = iw * scale;
-  const drawH = ih * scale;
-  return { scale, x: (boxW - drawW) / 2, y: (boxH - drawH) / 2 };
+  return { scale };
 }
 
 /**

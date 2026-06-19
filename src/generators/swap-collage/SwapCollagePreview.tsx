@@ -18,61 +18,10 @@ import type Konva from "konva";
 import { useTheme } from "next-themes";
 import { useSwapCollage } from "./SwapCollageProvider";
 import { canvasDims, containFit, tileLayout } from "./dimensions";
-import { clampCoverPos, coverFit } from "@/lib/canvas/fit";
-import { toPixels } from "@/lib/geometry";
-import type { Slot, Transform } from "./swapReducer";
+import { solveSwapLayout, solveTransform } from "./layout";
+import { clampCoverPos } from "@/lib/canvas/fit";
+import type { Slot } from "./swapReducer";
 import { FilteredImage } from "@/components/filters/FilteredImage";
-
-interface Placement {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-function placement(
-  iw: number,
-  ih: number,
-  tileW: number,
-  tileH: number,
-  xform: Transform,
-): Placement {
-  const { scale } = coverFit(iw, ih, tileW, tileH);
-  const width = iw * scale * xform.zoom;
-  const height = ih * scale * xform.zoom;
-  // Clamp to the cover window so no empty edge is ever revealed (render + export).
-  const { x, y } = clampCoverPos(
-    (tileW - width) / 2 + xform.panX * tileW,
-    (tileH - height) / 2 + xform.panY * tileH,
-    width,
-    height,
-    tileW,
-    tileH,
-  );
-  return { width, height, x, y };
-}
-
-/** Solve a node's geometry back to a resolution-stable transform. The node's
- *  position is clamped to the cover window first, so a drag can never store a
- *  transform that would reveal an empty edge. */
-function solveXform(
-  node: Konva.Image,
-  iw: number,
-  ih: number,
-  tileW: number,
-  tileH: number,
-): Transform {
-  const { scale } = coverFit(iw, ih, tileW, tileH);
-  const width = node.width() * node.scaleX();
-  const height = node.height() * node.scaleY();
-  const zoom = width / (iw * scale);
-  const { x, y } = clampCoverPos(node.x(), node.y(), width, height, tileW, tileH);
-  return {
-    zoom,
-    panX: (x - (tileW - width) / 2) / tileW,
-    panY: (y - (tileH - height) / 2) / tileH,
-  };
-}
 
 /** Target on-screen size (CSS px) for the placeholder hint, regardless of the
  *  stage scale / export size. Divided by `scale` at the call site to convert
@@ -166,7 +115,19 @@ export function SwapCollagePreview() {
     avail.h || dims.ch,
   );
 
-  const maskPx = toPixels(state.mask, tiles.tileW, tiles.tileH);
+  // The whole collage's placement, solved once per render in a pure module.
+  // The swap cross-reference (each tile's overlay wears the other slot's
+  // transform) is decided inside solveSwapLayout, not in this component.
+  const layout = solveSwapLayout({
+    tiles,
+    mask: state.mask,
+    images: {
+      A: imgA.bitmap ? { w: imgA.bitmap.width, h: imgA.bitmap.height } : null,
+      B: imgB.bitmap ? { w: imgB.bitmap.width, h: imgB.bitmap.height } : null,
+    },
+    xforms: { A: state.xformA, B: state.xformB },
+  });
+  const { maskPx } = layout;
 
   const openPicker = (slot: Slot) =>
     (slot === "A" ? fileARef.current : fileBRef.current)?.click();
@@ -196,11 +157,20 @@ export function SwapCollagePreview() {
 
   const onImageTransform = (slot: Slot, node: Konva.Image | null) => {
     const bmp = slot === "A" ? imgA.bitmap : imgB.bitmap;
-    if (!bmp) return;
+    if (!bmp || !node) return;
     dispatch({
       type: "SET_XFORM",
       slot,
-      xform: solveXform(node!, bmp.width, bmp.height, tiles.tileW, tiles.tileH),
+      xform: solveTransform(
+        node.x(),
+        node.y(),
+        node.width() * node.scaleX(),
+        node.height() * node.scaleY(),
+        bmp.width,
+        bmp.height,
+        tiles.tileW,
+        tiles.tileH,
+      ),
     });
   };
 
@@ -224,23 +194,12 @@ export function SwapCollagePreview() {
   };
 
   const renderTile = (
-    slot: "A" | "B",
+    slot: Slot,
     baseBmp: ImageBitmap | null,
     otherBmp: ImageBitmap | null,
-    xform: Transform,
     origin: { x: number; y: number },
   ) => {
-    const base = baseBmp
-      ? placement(baseBmp.width, baseBmp.height, tiles.tileW, tiles.tileH, xform)
-      : null;
-    const overlay = otherBmp
-      ? placement(
-          otherBmp.width,
-          otherBmp.height,
-          tiles.tileW, tiles.tileH,
-          slot === "A" ? state.xformB : state.xformA,
-        )
-      : null;
+    const { base, overlay } = layout.tiles[slot];
     return (
       <Group
         x={origin.x}
@@ -257,7 +216,8 @@ export function SwapCollagePreview() {
               // Konva drives the node's position itself during a drag and
               // ignores the React x/y props until release, so clamping only
               // in render would let the image reveal an empty edge mid-drag.
-              // Force the node back inside the cover window every move.
+              // Force the node back inside the cover window every move, then
+              // store the (clamped) transform via solveTransform.
               const node = e.target as Konva.Image;
               const w = node.width() * node.scaleX();
               const h = node.height() * node.scaleY();
@@ -313,8 +273,8 @@ export function SwapCollagePreview() {
         scaleY={scale}
       >
         <Layer>
-          {renderTile("A", imgA.bitmap, imgB.bitmap, state.xformA, tiles.A)}
-          {renderTile("B", imgB.bitmap, imgA.bitmap, state.xformB, tiles.B)}
+          {renderTile("A", imgA.bitmap, imgB.bitmap, tiles.A)}
+          {renderTile("B", imgB.bitmap, imgA.bitmap, tiles.B)}
         </Layer>
 
         {/* Mask guides + handles. Top layer, unclipped, canvas coords. */}
