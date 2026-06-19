@@ -22,3 +22,11 @@ export type FilterInstance =
 
 /** An ordered stack of filters applied bottom-to-top. */
 export type FilterStack = FilterInstance[];
+
+/** A per-variant patch: each branch only allows the fields of ONE variant
+ *  (excluding the discriminator `kind` and the stable `id`). */
+export type FilterPatch = {
+  [K in FilterInstance["kind"]]: Partial<
+    Omit<Extract<FilterInstance, { kind: K }>, "id" | "kind">
+  >;
+}[FilterInstance["kind"]];

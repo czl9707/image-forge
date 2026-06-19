@@ -1,6 +1,6 @@
 // src/lib/filters/stackOps.ts
 import { makeFilter } from "./kinds";
-import type { FilterInstance, FilterKind, FilterStack } from "./types";
+import type { FilterInstance, FilterKind, FilterPatch, FilterStack } from "./types";
 
 /** The primary-slider value of an instance (radius / value / shift). Hue's
  *  primary slider is `shift`; colorize hue/sat are handled separately by the UI. */
@@ -21,7 +21,7 @@ export function withAmount(f: FilterInstance, n: number): FilterInstance {
 export function updateFilter(
   stack: FilterStack,
   id: string,
-  patch: Partial<FilterInstance>,
+  patch: FilterPatch,
 ): FilterStack {
   return stack.map((f) => (f.id === id ? ({ ...f, ...patch } as FilterInstance) : f));
 }

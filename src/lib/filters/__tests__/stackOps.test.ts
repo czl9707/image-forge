@@ -22,12 +22,12 @@ describe("stackOps", () => {
   it("withAmount sets the primary value for each kind", () => {
     const blur = DEFAULT_STACK.find((f) => f.kind === "blur")!;
     const hue = DEFAULT_STACK.find((f) => f.kind === "hue")!;
-    expect(withAmount(blur, 7).kind === "blur" && (withAmount(blur, 7) as any).radius).toBe(7);
-    expect(withAmount(hue, 42).kind === "hue" && (withAmount(hue, 42) as any).shift).toBe(42);
+    expect(amountOf(withAmount(blur, 7))).toBe(7);
+    expect(amountOf(withAmount(hue, 42))).toBe(42);
   });
 
   it("updateFilter merges a patch into the matched instance only", () => {
-    const next = updateFilter(DEFAULT_STACK, "blur", { enabled: false } as any);
+    const next = updateFilter(DEFAULT_STACK, "blur", { enabled: false });
     expect(next.find((f) => f.id === "blur")!.enabled).toBe(false);
     expect(DEFAULT_STACK.find((f) => f.id === "blur")!.enabled).toBe(true); // unchanged
   });
