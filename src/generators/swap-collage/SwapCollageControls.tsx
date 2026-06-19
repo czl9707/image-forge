@@ -1,5 +1,5 @@
 // src/generators/swap-collage/SwapCollageControls.tsx
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
   Columns2,
@@ -34,6 +34,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MASK_MIN } from "./swapReducer";
 import type { AspectId, Orientation } from "./swapReducer";
+import { canvasDims, tileLayout } from "./dimensions";
 import { FilterStackControls } from "@/components/filters/FilterStackControls";
 
 /** A control label: smaller and lighter than an accordion section title, to
@@ -45,9 +46,6 @@ function FieldLabel({ children }: { children: ReactNode }) {
     </Label>
   );
 }
-
-/** Whole-percent floor for the swap-size number fields (matches MASK_MIN). */
-const MIN_PCT = Math.round(MASK_MIN * 100);
 
 /** A single source affordance per image: empty → "Choose source", ready → the
  *  filename, error → the message. The whole bar opens the file picker (replace);
@@ -146,31 +144,27 @@ function ZoomControls({
   );
 }
 
-/** A swap-size dimension: drag the slider OR type a whole percent (clamped to
- *  MIN_PCT–100). The draft tracks the slider; on blur/Enter it commits. */
+/** A swap-size dimension: drag the slider OR type a pixel value (clamped to the
+ *  mask-min..tile size). The field is uncontrolled and keyed on `value`, so it
+ *  reflects the slider without a sync-effect; typing commits on blur/Enter. */
 function DimensionSlider({
   label,
   value,
+  pxMax,
   onChange,
 }: {
   label: string;
-  value: number;
+  value: number; // normalized [MASK_MIN, 1]
+  pxMax: number; // tile dimension in px (value * pxMax = shown px)
   onChange: (v: number) => void;
 }) {
-  const pct = Math.round(value * 100);
-  const [draft, setDraft] = useState(String(pct));
-  // Keep the field in sync when the value moves from elsewhere (slider drag).
-  useEffect(() => {
-    setDraft(String(pct));
-  }, [pct]);
-
+  const minPx = Math.max(1, Math.round(MASK_MIN * pxMax));
   const commit = (raw: string) => {
     const n = Math.round(Number(raw));
     const clamped = Number.isFinite(n)
-      ? Math.min(100, Math.max(MIN_PCT, n))
-      : MIN_PCT;
-    onChange(clamped / 100);
-    setDraft(String(clamped));
+      ? Math.min(pxMax, Math.max(minPx, n))
+      : minPx;
+    onChange(clamped / pxMax);
   };
 
   return (
@@ -179,18 +173,18 @@ function DimensionSlider({
         <FieldLabel>{label}</FieldLabel>
         <div className="flex items-center gap-1">
           <Input
+            key={value}
+            defaultValue={String(Math.round(value * pxMax))}
             inputMode="numeric"
-            min={MIN_PCT}
-            max={100}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={(e) => commit(e.target.value)}
+            min={minPx}
+            max={pxMax}
+            className="h-7 w-16 text-right"
+            onBlur={(e) => commit((e.target as HTMLInputElement).value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
-            className="h-7 w-16 text-right"
           />
-          <span className="text-xs text-muted-foreground">%</span>
+          <span className="text-xs text-muted-foreground">px</span>
         </div>
       </div>
       <Slider
@@ -207,18 +201,22 @@ function DimensionSlider({
 function MaskSizeControls({
   width,
   height,
+  tileW,
+  tileH,
   onWidth,
   onHeight,
 }: {
   width: number;
   height: number;
+  tileW: number;
+  tileH: number;
   onWidth: (w: number) => void;
   onHeight: (h: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <DimensionSlider label="Swap Width" value={width} onChange={onWidth} />
-      <DimensionSlider label="Swap Height" value={height} onChange={onHeight} />
+      <DimensionSlider label="Swap Width" value={width} pxMax={tileW} onChange={onWidth} />
+      <DimensionSlider label="Swap Height" value={height} pxMax={tileH} onChange={onHeight} />
     </div>
   );
 }
@@ -231,6 +229,10 @@ export function SwapCollageControls() {
   const fileB = useRef<HTMLInputElement>(null);
 
   const bothReady = imgA.status === "ready" && imgB.status === "ready";
+
+  // Tile px at export resolution, so the swap-size fields can show real px.
+  const dims = canvasDims(state.aspect, state.orientation, state.exportSize);
+  const tiles = tileLayout(state.orientation, dims);
 
   const onPick = (slot: "A" | "B") => (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -322,6 +324,8 @@ export function SwapCollageControls() {
             <MaskSizeControls
               width={state.mask.w}
               height={state.mask.h}
+              tileW={tiles.tileW}
+              tileH={tiles.tileH}
               onWidth={(w) => dispatch({ type: "SET_MASK", mask: { ...state.mask, w } })}
               onHeight={(h) => dispatch({ type: "SET_MASK", mask: { ...state.mask, h } })}
             />
