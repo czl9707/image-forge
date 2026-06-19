@@ -15,13 +15,7 @@ describe("swapReducer", () => {
     expect(initialSwapState.mask).toEqual(DEFAULT_MASK);
     expect(initialSwapState.xformA.zoom).toBe(1);
     expect(initialSwapState.selection).toBeNull();
-    expect(initialSwapState.filtersA.map((f) => f.kind)).toEqual([
-      "blur",
-      "brightness",
-      "contrast",
-      "saturation",
-      "hue",
-    ]);
+    expect(initialSwapState.filtersA).toEqual([]);
   });
 
   it("sets orientation AND re-fits both images (canvas rotated)", () => {
@@ -103,32 +97,34 @@ describe("swapReducer", () => {
     expect(s.xformA.zoom).toBe(1); // untouched
   });
 
-  it("initializes each slot with the default filter stack", () => {
-    expect(initialSwapState.filtersA).toHaveLength(5);
-    expect(initialSwapState.filtersB).toHaveLength(5);
+  it("initializes each slot with an empty filter stack", () => {
+    expect(initialSwapState.filtersA).toEqual([]);
+    expect(initialSwapState.filtersB).toEqual([]);
   });
 
   it("SET_FILTERS updates the named slot only", () => {
+    const stack = [{ id: "b", kind: "blur", enabled: true, radius: 5 }];
     const next = swapReducer(initialSwapState, {
       type: "SET_FILTERS",
       slot: "A",
-      filters: [],
+      filters: stack,
     } as SwapAction);
-    expect(next.filtersA).toEqual([]);
-    expect(next.filtersB).toHaveLength(5); // untouched
+    expect(next.filtersA).toEqual(stack);
+    expect(next.filtersB).toEqual([]); // untouched
   });
 
   it("orientation change resets transform but leaves filters intact", () => {
+    const stack = [{ id: "b", kind: "blur", enabled: true, radius: 5 }];
     const withFilters = swapReducer(initialSwapState, {
       type: "SET_FILTERS",
       slot: "A",
-      filters: [],
+      filters: stack,
     } as SwapAction);
     const after = swapReducer(withFilters, {
       type: "SET_ORIENTATION",
       orientation: "tb",
     } as SwapAction);
-    expect(after.filtersA).toEqual([]); // preserved
+    expect(after.filtersA).toEqual(stack); // preserved
     expect(after.xformA.zoom).toBe(1); // transform reset
   });
 

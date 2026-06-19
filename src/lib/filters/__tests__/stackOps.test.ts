@@ -41,13 +41,12 @@ describe("stackOps", () => {
     expect(next.find((f) => f.id === "contrast")!.enabled).toBe(false);
   });
 
-  it("addFilter appends a missing kind and is a no-op when present", () => {
-    const withoutHue = removeFilter(DEFAULT_STACK, "hue");
-    const readded = addFilter(withoutHue, "hue", "new-hue");
-    expect(readded.length).toBe(5);
-    expect(readded[4].kind).toBe("hue");
-    // already present -> unchanged
-    expect(addFilter(DEFAULT_STACK, "blur", "dup").length).toBe(5);
+  it("addFilter always appends, allowing duplicate kinds", () => {
+    const one = addFilter([], "blur", "b1");
+    expect(one).toHaveLength(1);
+    const two = addFilter(one, "blur", "b2");
+    expect(two).toHaveLength(2);
+    expect(two[1].id).toBe("b2");
   });
 
   it("moveFilter reorders and clamps", () => {

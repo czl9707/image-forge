@@ -36,14 +36,13 @@ export function toggleFilter(stack: FilterStack, id: string): FilterStack {
   return stack.map((f) => (f.id === id ? { ...f, enabled: !f.enabled } : f));
 }
 
-/** Append a fresh neutral instance of `kind`. No-op (returns stack unchanged)
- *  if `kind` is already present — one of each kind. The new id is `newId`. */
+/** Append a fresh neutral instance of `kind` with the given id. Duplicates of
+ *  the same kind are allowed (e.g. two Blur filters compound). */
 export function addFilter(
   stack: FilterStack,
   kind: FilterKind,
   newId: string,
 ): FilterStack {
-  if (stack.some((f) => f.kind === kind)) return stack;
   return [...stack, makeFilter(kind, newId)];
 }
 

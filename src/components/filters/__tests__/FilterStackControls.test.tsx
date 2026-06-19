@@ -33,8 +33,9 @@ describe("FilterStackControls", () => {
     expect(screen.getAllByLabelText("Colorize")).toHaveLength(1);
   });
 
-  it("the add control is disabled when no kinds are missing", () => {
-    render(<FilterStackControls stack={DEFAULT_STACK} onChange={() => {}} />);
-    expect(screen.getByLabelText("Add filter")).toBeDisabled();
+  it("with an empty stack, shows a hint and an enabled add control", () => {
+    render(<FilterStackControls stack={[]} onChange={() => {}} />);
+    expect(screen.getByText(/No filters yet/i)).toBeTruthy();
+    expect(screen.getByLabelText("Add filter")).toBeTruthy();
   });
 });

@@ -1,6 +1,6 @@
 // src/generators/swap-collage/swapReducer.ts
 import { clampRect, type Rect } from "@/lib/geometry";
-import { DEFAULT_STACK, type FilterStack } from "@/lib/filters";
+import type { FilterStack } from "@/lib/filters";
 
 export type Orientation = "lr" | "tb";
 export type AspectId = "16:9" | "4:3" | "1:1";
@@ -38,8 +38,8 @@ export const initialSwapState: SwapState = {
   mask: DEFAULT_MASK,
   xformA: { ...IDENTITY_XFORM },
   xformB: { ...IDENTITY_XFORM },
-  filtersA: DEFAULT_STACK.map((f) => ({ ...f })),
-  filtersB: DEFAULT_STACK.map((f) => ({ ...f })),
+  filtersA: [],
+  filtersB: [],
   selection: null,
 };
 

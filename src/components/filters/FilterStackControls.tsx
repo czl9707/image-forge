@@ -1,3 +1,4 @@
+// src/components/filters/FilterStackControls.tsx
 import { useState } from "react";
 import { GripVertical, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
@@ -17,7 +17,6 @@ import {
   amountOf,
   COLORIZE_HUE,
   COLORIZE_SAT,
-  DEFAULT_STACK,
   KIND_META,
   moveFilter,
   removeFilter,
@@ -35,10 +34,8 @@ function newId(): string {
     : `f-${Math.random().toString(36).slice(2)}`;
 }
 
-function missingKinds(stack: FilterStack): FilterKind[] {
-  const present = new Set(stack.map((f) => f.kind));
-  return (Object.keys(KIND_META) as FilterKind[]).filter((k) => !present.has(k));
-}
+/** All addable kinds, always available (duplicates allowed). */
+const ALL_KINDS = Object.keys(KIND_META) as FilterKind[];
 
 /** A row. `make` applies a stack-transforming fn to the real current stack and
  *  propagates the result via onChange. */
@@ -166,41 +163,38 @@ export function FilterStackControls({
     if (disabled) return;
     onChange(fn(stack));
   };
-  const missing = missingKinds(stack);
 
   return (
     <div className="flex flex-col gap-2">
+      {stack.length === 0 && (
+        <p className="text-xs text-muted-foreground">No filters yet — add one.</p>
+      )}
+
       {stack.map((f, i) => (
         <Row key={f.id} f={f} index={i} make={make} />
       ))}
 
-      {missing.length > 0 ? (
-        <Select
-          value=""
-          onValueChange={(kind) => {
-            if (!kind || disabled) return;
-            onChange(addFilter(stack, kind as FilterKind, newId()));
-          }}
-        >
-          <SelectTrigger className="w-full" aria-label="Add filter">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Plus className="size-4" /> Add filter
-            </span>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {missing.map((k) => (
-              <SelectItem key={k} value={k}>
-                {KIND_META[k].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <Button type="button" variant="outline" className="w-full" aria-label="Add filter" disabled>
-          <Plus className="size-4" /> All filters added
-        </Button>
-      )}
+      <Select
+        value=""
+        disabled={disabled}
+        onValueChange={(kind) => {
+          if (!kind || disabled) return;
+          onChange(addFilter(stack, kind as FilterKind, newId()));
+        }}
+      >
+        <SelectTrigger className="w-full" aria-label="Add filter">
+          <span className="flex items-center gap-2 text-muted-foreground">
+            <Plus className="size-4" /> Add filter
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {ALL_KINDS.map((k) => (
+            <SelectItem key={k} value={k}>
+              {KIND_META[k].label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <Button
         type="button"
@@ -208,7 +202,7 @@ export function FilterStackControls({
         size="sm"
         className="w-full text-muted-foreground"
         disabled={disabled}
-        onClick={() => onChange(DEFAULT_STACK.map((f) => ({ ...f })))}
+        onClick={() => onChange([])}
       >
         <RotateCcw className="size-4" /> Reset filters
       </Button>

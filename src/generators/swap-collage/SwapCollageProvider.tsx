@@ -23,7 +23,7 @@ import {
   type SwapState,
   type Transform,
 } from "./swapReducer";
-import { DEFAULT_STACK, type FilterInstance, type FilterKind, type FilterStack } from "@/lib/filters";
+import type { FilterInstance, FilterKind, FilterStack } from "@/lib/filters";
 
 export interface ImageSlot {
   bitmap: ImageBitmap | null;
@@ -56,10 +56,10 @@ export function SwapCollageProvider({ children }: { children: ReactNode }) {
   const clearImage = (slot: Slot) => {
     if (slot === "A") a.reset();
     else b.reset();
-    // Clearing an image also resets its zoom/pan AND its filters — no stale
-    // transform or look on a now-empty tile.
+    // Clearing an image also resets its zoom/pan AND clears its filters — no
+    // stale transform or look on a now-empty tile.
     dispatch({ type: "RESET_XFORM", slot });
-    dispatch({ type: "SET_FILTERS", slot, filters: DEFAULT_STACK.map((f) => ({ ...f })) });
+    dispatch({ type: "SET_FILTERS", slot, filters: [] });
   };
 
   const exportImage = (format: ExportFormat) => {
