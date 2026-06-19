@@ -5,7 +5,6 @@ import {
   Download,
   RectangleHorizontal,
   RectangleVertical,
-  RotateCcw,
   Rows2,
   Square,
   Trash2,
@@ -26,6 +25,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MASK_MIN } from "./swapReducer";
 import type { AspectId, Orientation, Slot } from "./swapReducer";
 
+/** Human label for an image-slot status. */
+function statusLabel(status: string, error: string | null): string {
+  if (status === "ready") return "loaded";
+  if (status === "error") return error ?? "error";
+  return status;
+}
+
 function SlotRow({
   label,
   status,
@@ -44,7 +50,7 @@ function SlotRow({
       <div className="flex items-center justify-between">
         <Label>{label}</Label>
         <span className="text-xs text-muted-foreground">
-          {status === "ready" ? "loaded" : status === "error" ? error ?? "error" : status}
+          {statusLabel(status, error)}
         </span>
       </div>
       <div className="flex gap-2">
@@ -63,10 +69,12 @@ function ZoomControls({
   slot,
   zoom,
   onChange,
+  disabled,
 }: {
   slot: Slot;
   zoom: number;
   onChange: (zoom: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -81,6 +89,7 @@ function ZoomControls({
         min={1}
         max={4}
         step={0.01}
+        disabled={disabled}
         onValueChange={([v]) => onChange(v)}
       />
     </div>
@@ -171,32 +180,30 @@ export function SwapCollageControls() {
       {/* Sizing lives here, not on the canvas: a zoom slider per loaded image
           (zoom is a scalar), and width/height for the shared swap box. The
           canvas is position-only — see SwapCollagePreview. */}
-      {imgA.status === "ready" && (
-        <ZoomControls
-          slot="A"
-          zoom={state.xformA.zoom}
-          onChange={(z) =>
-            dispatch({
-              type: "SET_XFORM",
-              slot: "A",
-              xform: { ...state.xformA, zoom: z },
-            })
-          }
-        />
-      )}
-      {imgB.status === "ready" && (
-        <ZoomControls
-          slot="B"
-          zoom={state.xformB.zoom}
-          onChange={(z) =>
-            dispatch({
-              type: "SET_XFORM",
-              slot: "B",
-              xform: { ...state.xformB, zoom: z },
-            })
-          }
-        />
-      )}
+      <ZoomControls
+        slot="A"
+        zoom={state.xformA.zoom}
+        disabled={imgA.status !== "ready"}
+        onChange={(z) =>
+          dispatch({
+            type: "SET_XFORM",
+            slot: "A",
+            xform: { ...state.xformA, zoom: z },
+          })
+        }
+      />
+      <ZoomControls
+        slot="B"
+        zoom={state.xformB.zoom}
+        disabled={imgB.status !== "ready"}
+        onChange={(z) =>
+          dispatch({
+            type: "SET_XFORM",
+            slot: "B",
+            xform: { ...state.xformB, zoom: z },
+          })
+        }
+      />
       <MaskSizeControls
         width={state.mask.w}
         height={state.mask.h}
@@ -275,14 +282,6 @@ export function SwapCollageControls() {
           </TabsList>
         </Tabs>
       </div>
-
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => dispatch({ type: "RESET_MASK" })}
-      >
-        <RotateCcw /> Reset mask
-      </Button>
 
       <Button onClick={onExport} disabled={!bothReady}>
         <Download /> Export

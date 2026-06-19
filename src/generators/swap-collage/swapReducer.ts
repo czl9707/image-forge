@@ -45,7 +45,6 @@ export type SwapAction =
   | { type: "SET_MASK"; mask: Mask }
   | { type: "SET_XFORM"; slot: Slot; xform: Transform }
   | { type: "SET_SELECTION"; selection: Selection }
-  | { type: "RESET_MASK" }
   | { type: "RESET_XFORM"; slot: Slot };
 
 export function swapReducer(state: SwapState, action: SwapAction): SwapState {
@@ -70,8 +69,6 @@ export function swapReducer(state: SwapState, action: SwapAction): SwapState {
         : { ...state, xformB: action.xform };
     case "SET_SELECTION":
       return { ...state, selection: action.selection };
-    case "RESET_MASK":
-      return { ...state, mask: DEFAULT_MASK };
     case "RESET_XFORM":
       return action.slot === "A"
         ? { ...state, xformA: { ...IDENTITY_XFORM } }

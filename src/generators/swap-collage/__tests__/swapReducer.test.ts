@@ -75,12 +75,4 @@ describe("swapReducer", () => {
     expect(s.selection).toBe("mask");
   });
 
-  it("resets the mask", () => {
-    const moved = swapReducer(initialSwapState, {
-      type: "SET_MASK",
-      mask: { x: 0, y: 0, w: 0.2, h: 0.2 },
-    } as SwapAction);
-    const s = swapReducer(moved, { type: "RESET_MASK" } as SwapAction);
-    expect(s.mask).toEqual(DEFAULT_MASK);
-  });
 });
