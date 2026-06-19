@@ -137,3 +137,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide scrollbars while keeping the element scrollable. Used on dense panels
+   (e.g. the swap-collage sidebar accordion) where a visible scrollbar is
+   noise. Firefox via scrollbar-width; WebKit/Chromium via the pseudo-element. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
