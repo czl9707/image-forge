@@ -38,7 +38,7 @@ export function StudioShell() {
 
   return (
     <Provider>
-      <SidebarProvider>
+      <SidebarProvider className="min-h-0 h-svh overflow-hidden">
         <SidebarLeft />
         <SidebarInset className="min-w-0">
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -63,7 +63,7 @@ export function StudioShell() {
             <ModeToggle className="ml-auto" />
           </header>
 
-          <div className="flex max-h-[calc(100svh-4rem)] min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8 lg:p-16">
+          <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto p-4 md:p-8 lg:p-16">
             <Preview />
           </div>
         </SidebarInset>
