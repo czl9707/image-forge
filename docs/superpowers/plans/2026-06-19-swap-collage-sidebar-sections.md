@@ -12,109 +12,25 @@
 
 ---
 
-### Task 1: Add the Accordion primitive + keyframes
+### Task 1: Add the Accordion primitive (via shadcn CLI)
 
 **Files:**
-- Create: `src/components/ui/accordion.tsx`
-- Modify: `src/index.css` (the `@theme` block, ends at line 110)
+- Created by CLI: `src/components/ui/accordion.tsx`
+- Modified by CLI: `src/index.css` (the CLI adds the `--animate-accordion-*` keys + `@keyframes` to the `@theme` block automatically)
 
-- [ ] **Step 1: Add accordion keyframes to the theme**
+> **Rule:** Always install UI components via the shadcn CLI (`npx shadcn@latest add <name>`), never hand-write `src/components/ui/*`. The CLI keeps components and their CSS theme tokens (keyframes, etc.) consistent with `components.json` (style `new-york`, css `src/index.css`).
 
-In `src/index.css`, inside the existing `@theme { ... }` block (add these lines immediately before the closing `}` at line 110, after the `--radius-xl` line):
+- [ ] **Step 1: Install accordion via the shadcn CLI**
 
-```css
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
-  @keyframes accordion-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-accordion-content-height);
-    }
-  }
-  @keyframes accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-    to {
-      height: 0;
-    }
-  }
-```
+Run: `npx shadcn@latest add accordion`
+Expected: The CLI writes `src/components/ui/accordion.tsx` and adds the accordion animation tokens/keyframes to `src/index.css`. The project already has the `radix-ui` umbrella dependency, so no new packages should be required — if the CLI asks to install anything, accept it.
 
-This registers `animate-accordion-down` / `animate-accordion-up` utilities in Tailwind v4 (which reads `--animate-*` keys from `@theme`).
+- [ ] **Step 2: Confirm the file and exports exist**
 
-- [ ] **Step 2: Create `src/components/ui/accordion.tsx`**
+Verify `src/components/ui/accordion.tsx` exists and exports `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` (the CLI-generated file uses the `radix-ui` umbrella import and `data-slot` attributes, matching `slider.tsx`).
 
-Create the file with this exact content (matches the new-style shadcn convention used by `src/components/ui/slider.tsx`: function components, `data-slot` attributes, `radix-ui` umbrella import):
-
-```tsx
-import * as React from "react"
-import { Accordion as AccordionPrimitive } from "radix-ui"
-import { ChevronDown } from "lucide-react"
-
-import { cn } from "@/lib/utils"
-
-function Accordion({
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Root>) {
-  return <AccordionPrimitive.Root data-slot="accordion" {...props} />
-}
-
-function AccordionItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Item>) {
-  return (
-    <AccordionPrimitive.Item
-      data-slot="accordion-item"
-      className={cn("border-b last:border-b-0", className)}
-      {...props}
-    />
-  )
-}
-
-function AccordionTrigger({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
-  return (
-    <AccordionPrimitive.Header className="flex">
-      <AccordionPrimitive.Trigger
-        data-slot="accordion-trigger"
-        className={cn(
-          "focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium outline-none underline-offset-2 hover:underline focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        <ChevronDown className="text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200" />
-      </AccordionPrimitive.Trigger>
-    </AccordionPrimitive.Header>
-  )
-}
-
-function AccordionContent({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Content>) {
-  return (
-    <AccordionPrimitive.Content
-      data-slot="accordion-content"
-      className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden text-sm"
-      {...props}
-    >
-      <div className={cn("pt-0 pb-4", className)}>{children}</div>
-    </AccordionPrimitive.Content>
-  )
-}
-
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
-```
+Run: `grep -n "export {" src/components/ui/accordion.tsx`
+Expected: a line like `export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }`.
 
 - [ ] **Step 3: Typecheck**
 
