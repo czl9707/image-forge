@@ -16,6 +16,7 @@ describe("useImageBitmap", () => {
     const { result } = renderHook(() => useImageBitmap());
     expect(result.current.status).toBe("idle");
     expect(result.current.bitmap).toBeNull();
+    expect(result.current.name).toBeNull();
   });
 
   it("rejects a non-image file without decoding", async () => {
@@ -25,6 +26,7 @@ describe("useImageBitmap", () => {
       await result.current.load(file);
     });
     expect(result.current.status).toBe("error");
+    expect(result.current.name).toBeNull();
     expect(globalThis.createImageBitmap).not.toHaveBeenCalled();
   });
 
@@ -36,6 +38,7 @@ describe("useImageBitmap", () => {
     });
     expect(result.current.status).toBe("ready");
     expect(result.current.bitmap).toBe(fakeBitmap);
+    expect(result.current.name).toBe("a.png");
   });
 
   it("surfaces a decode error", async () => {
@@ -60,5 +63,6 @@ describe("useImageBitmap", () => {
     act(() => result.current.reset());
     expect(result.current.status).toBe("idle");
     expect(result.current.bitmap).toBeNull();
+    expect(result.current.name).toBeNull();
   });
 });

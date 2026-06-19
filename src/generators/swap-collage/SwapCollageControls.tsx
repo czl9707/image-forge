@@ -1,17 +1,24 @@
 // src/generators/swap-collage/SwapCollageControls.tsx
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import {
+  AlertTriangle,
   Columns2,
   Download,
+  Image as ImageIcon,
+  Loader2,
   RectangleHorizontal,
   RectangleVertical,
   Rows2,
   Square,
-  Trash2,
+  Upload,
+  X,
 } from "lucide-react";
 import { useSwapCollage } from "./SwapCollageProvider";
 import { type ExportFormat } from "@/export";
+import { type ImgStatus } from "@/hooks/useImageBitmap";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -31,41 +38,84 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MASK_MIN } from "./swapReducer";
 import type { AspectId, Orientation, Slot } from "./swapReducer";
 
-/** Human label for an image-slot status. */
-function statusLabel(status: string, error: string | null): string {
-  if (status === "ready") return "loaded";
-  if (status === "error") return error ?? "error";
-  return status;
+/** A control label: smaller and lighter than an accordion section title, to
+ *  keep a clear visual hierarchy (section > control > value). */
+function FieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <Label className="text-xs font-normal text-muted-foreground">
+      {children}
+    </Label>
+  );
 }
 
-function SlotRow({
-  label,
+/** Whole-percent floor for the swap-size number fields (matches MASK_MIN). */
+const MIN_PCT = Math.round(MASK_MIN * 100);
+
+/** A single source affordance per image: empty → "Choose source", ready → the
+ *  filename, error → the message. The whole bar opens the file picker (replace);
+ *  the ✕ at the right edge clears. The filename/error IS the status — there is
+ *  no separate status line. */
+function SourceControl({
+  name,
   status,
   error,
   onReplace,
   onClear,
 }: {
-  label: string;
-  status: string;
+  name: string | null;
+  status: ImgStatus;
   error: string | null;
   onReplace: () => void;
   onClear: () => void;
 }) {
+  const busy = status === "loading";
+  const ready = status === "ready";
+  const isError = status === "error";
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <Label>{label}</Label>
-        <span className="text-xs text-muted-foreground">
-          {statusLabel(status, error)}
-        </span>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={onReplace}>
-          Replace
+    <div className="flex flex-col gap-1.5">
+      <FieldLabel>Source</FieldLabel>
+      <div className="relative">
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            "h-9 w-full justify-start gap-2 font-normal text-muted-foreground",
+            ready && "pr-9 text-foreground",
+          )}
+          disabled={busy}
+          onClick={onReplace}
+        >
+          {busy ? (
+            <Loader2 className="animate-spin" />
+          ) : ready ? (
+            <ImageIcon />
+          ) : isError ? (
+            <AlertTriangle className="text-destructive" />
+          ) : (
+            <Upload />
+          )}
+          <span className={cn("truncate", isError && "text-destructive")}>
+            {ready
+              ? name
+              : isError
+                ? error ?? "error"
+                : busy
+                  ? "Loading…"
+                  : "Choose source"}
+          </span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          <Trash2 /> Clear
-        </Button>
+        {ready && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+            onClick={onClear}
+            aria-label="Clear source"
+          >
+            <X />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -85,10 +135,8 @@ function ZoomControls({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <Label>Zoom ({slot})</Label>
-        <span className="text-xs text-muted-foreground">
-          {zoom.toFixed(2)}×
-        </span>
+        <FieldLabel>Zoom ({slot})</FieldLabel>
+        <span className="text-xs text-muted-foreground">{zoom.toFixed(2)}×</span>
       </div>
       <Slider
         value={[zoom]}
@@ -96,6 +144,65 @@ function ZoomControls({
         max={4}
         step={0.01}
         disabled={disabled}
+        onValueChange={([v]) => onChange(v)}
+      />
+    </div>
+  );
+}
+
+/** A swap-size dimension: drag the slider OR type a whole percent (clamped to
+ *  MIN_PCT–100). The draft tracks the slider; on blur/Enter it commits. */
+function DimensionSlider({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const pct = Math.round(value * 100);
+  const [draft, setDraft] = useState(String(pct));
+  // Keep the field in sync when the value moves from elsewhere (slider drag).
+  useEffect(() => {
+    setDraft(String(pct));
+  }, [pct]);
+
+  const commit = (raw: string) => {
+    const n = Math.round(Number(raw));
+    const clamped = Number.isFinite(n)
+      ? Math.min(100, Math.max(MIN_PCT, n))
+      : MIN_PCT;
+    onChange(clamped / 100);
+    setDraft(String(clamped));
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel>{label}</FieldLabel>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={MIN_PCT}
+            max={100}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            className="h-7 w-16 text-right"
+          />
+          <span className="text-xs text-muted-foreground">%</span>
+        </div>
+      </div>
+      <Slider
+        value={[value]}
+        min={MASK_MIN}
+        max={1}
+        step={0.01}
         onValueChange={([v]) => onChange(v)}
       />
     </div>
@@ -115,33 +222,9 @@ function MaskSizeControls({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <Label>Swap size</Label>
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Width</span>
-          <span>{Math.round(width * 100)}%</span>
-        </div>
-        <Slider
-          value={[width]}
-          min={MASK_MIN}
-          max={1}
-          step={0.01}
-          onValueChange={([v]) => onWidth(v)}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Height</span>
-          <span>{Math.round(height * 100)}%</span>
-        </div>
-        <Slider
-          value={[height]}
-          min={MASK_MIN}
-          max={1}
-          step={0.01}
-          onValueChange={([v]) => onHeight(v)}
-        />
-      </div>
+      <FieldLabel>Swap size</FieldLabel>
+      <DimensionSlider label="Width" value={width} onChange={onWidth} />
+      <DimensionSlider label="Height" value={height} onChange={onHeight} />
     </div>
   );
 }
@@ -173,8 +256,8 @@ export function SwapCollageControls() {
         <AccordionItem value="image-a">
           <AccordionTrigger>Image A</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <SlotRow
-              label="Image A"
+            <SourceControl
+              name={imgA.name}
               status={imgA.status}
               error={imgA.error}
               onReplace={() => fileA.current?.click()}
@@ -202,8 +285,8 @@ export function SwapCollageControls() {
         <AccordionItem value="image-b">
           <AccordionTrigger>Image B</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <SlotRow
-              label="Image B"
+            <SourceControl
+              name={imgB.name}
               status={imgB.status}
               error={imgB.error}
               onReplace={() => fileB.current?.click()}
@@ -235,7 +318,7 @@ export function SwapCollageControls() {
               onHeight={(h) => dispatch({ type: "SET_MASK", mask: { ...state.mask, h } })}
             />
             <div className="flex flex-col gap-2">
-              <Label>Orientation</Label>
+              <FieldLabel>Orientation</FieldLabel>
               <Tabs
                 value={state.orientation}
                 onValueChange={(v) =>
@@ -256,7 +339,7 @@ export function SwapCollageControls() {
               </Tabs>
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Aspect</Label>
+              <FieldLabel>Aspect</FieldLabel>
               <Tabs
                 value={state.aspect}
                 onValueChange={(v) =>
@@ -283,7 +366,7 @@ export function SwapCollageControls() {
           <AccordionTrigger>Export</AccordionTrigger>
           <AccordionContent className="space-y-4">
             <div className="flex flex-col gap-2">
-              <Label>Export size</Label>
+              <FieldLabel>Export size</FieldLabel>
               <Select
                 value={String(state.exportSize)}
                 onValueChange={(v) =>
@@ -300,7 +383,7 @@ export function SwapCollageControls() {
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Format</Label>
+              <FieldLabel>Format</FieldLabel>
               <Tabs value={format} onValueChange={(v) => setFormat(v as ExportFormat)}>
                 <TabsList>
                   <TabsTrigger value="png">PNG</TabsTrigger>

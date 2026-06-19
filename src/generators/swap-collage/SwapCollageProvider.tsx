@@ -26,6 +26,7 @@ import {
 
 export interface ImageSlot {
   bitmap: ImageBitmap | null;
+  name: string | null;
   status: ImgStatus;
   error: string | null;
 }
@@ -70,8 +71,8 @@ export function SwapCollageProvider({ children }: { children: ReactNode }) {
   };
 
   const value: SwapContextValue = {
-    imgA: { bitmap: a.bitmap, status: a.status, error: a.error },
-    imgB: { bitmap: b.bitmap, status: b.status, error: b.error },
+    imgA: { bitmap: a.bitmap, name: a.name, status: a.status, error: a.error },
+    imgB: { bitmap: b.bitmap, name: b.name, status: b.status, error: b.error },
     loadImage,
     clearImage,
     state,
