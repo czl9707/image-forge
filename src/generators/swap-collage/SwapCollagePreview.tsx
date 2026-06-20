@@ -11,7 +11,13 @@ import { Group, Layer, Rect, Stage, Text } from "react-konva";
 import type Konva from "konva";
 import { useTheme } from "next-themes";
 import { useSwapCollage } from "./SwapCollageProvider";
-import { canvasDims, containFit, pointToSlot, tileLayout } from "./dimensions";
+import {
+  canvasDims,
+  containFit,
+  placeholderTextStrip,
+  pointToSlot,
+  tileLayout,
+} from "./dimensions";
 import { solveMask, solveSwapLayout, solveTransform } from "./layout";
 import { clampCoverPos } from "@/lib/canvas/fit";
 import type { Rect as RectGeom } from "@/lib/geometry";
@@ -48,16 +54,22 @@ function Placeholder({
   return (
     <Group onMouseDown={onActivate} onTap={onActivate}>
       <Rect x={0} y={0} width={tileW} height={tileH} stroke={mutedFg} strokeWidth={1} />
-      <Text
-        text="Drop or click to upload"
-        width={tileW}
-        height={tileH}
-        align="center"
-        verticalAlign="middle"
-        fontSize={fontSize}
-        fill={mutedFg}
-        listening={false}
-      />
+      {(() => {
+        const strip = placeholderTextStrip(tileH);
+        return (
+          <Text
+            text="Drop or click to upload"
+            width={tileW}
+            y={strip.y}
+            height={strip.height}
+            align="center"
+            verticalAlign="middle"
+            fontSize={fontSize}
+            fill={mutedFg}
+            listening={false}
+          />
+        );
+      })()}
     </Group>
   );
 }
