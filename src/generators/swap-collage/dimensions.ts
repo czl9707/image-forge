@@ -84,3 +84,16 @@ export function containFit(
   const scale = Math.min(availW / cw, availH / ch);
   return { dispW: cw * scale, dispH: ch * scale, scale };
 }
+
+export interface PlaceholderStrip {
+  y: number;
+  height: number;
+}
+
+/** Vertical strip at the top of a tile reserved for the "Drop or click to
+ *  upload" hint, so the centered swap box never covers it. The hint text is
+ *  vertically centered within this strip. Pure: takes a tile height in any
+ *  consistent unit (logical or display px). */
+export function placeholderTextStrip(tileH: number): PlaceholderStrip {
+  return { y: 0, height: tileH * 0.15 };
+}

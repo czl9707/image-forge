@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canvasDims, tileLayout, containFit } from "../dimensions";
+import { canvasDims, tileLayout, containFit, placeholderTextStrip } from "../dimensions";
 
 describe("canvasDims", () => {
   it("16:9 left/right = wide", () => {
@@ -51,5 +51,19 @@ describe("containFit", () => {
       dispH: 250,
       scale: 0.25,
     });
+  });
+});
+
+describe("placeholderTextStrip", () => {
+  it("anchors to the top of the tile and is 15% of tile height", () => {
+    expect(placeholderTextStrip(400)).toEqual({ y: 0, height: 60 });
+  });
+  it("scales with tile height", () => {
+    expect(placeholderTextStrip(800)).toEqual({ y: 0, height: 120 });
+  });
+  it("stays within the tile bounds", () => {
+    const { y, height } = placeholderTextStrip(200);
+    expect(y).toBe(0);
+    expect(y + height).toBeLessThanOrEqual(200);
   });
 });
