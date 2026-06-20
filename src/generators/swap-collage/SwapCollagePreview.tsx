@@ -313,7 +313,7 @@ export function SwapCollagePreview() {
           {renderTile("B", imgB.bitmap, imgA.bitmap, tiles.B)}
         </Layer>
 
-        {/* Mask guides + handles. Top layer, unclipped, canvas coords. */}
+        {/* Mask drag handles. Top layer, unclipped, canvas coords. */}
         <Layer>
           {SLOTS.map((slot) => (
             <MaskOverlay
