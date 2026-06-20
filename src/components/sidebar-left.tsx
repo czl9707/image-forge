@@ -37,7 +37,7 @@ export function SidebarLeft({
             <Layers className="size-4" />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold">Collage Studio</span>
+            <span className="text-sm font-semibold">Image Forge</span>
             <span className="text-xs text-muted-foreground">
               Image generators
             </span>

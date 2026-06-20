@@ -1,4 +1,4 @@
-# nolli-collage
+# image-forge
 
 A standalone SPA built as an extensible hub of image **generators**. The first (and currently only) generator is **swap collage**. The same Konva `<Stage>` is both the live preview and the export source (preview === export).
 

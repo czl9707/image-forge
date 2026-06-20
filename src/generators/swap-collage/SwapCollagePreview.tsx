@@ -26,7 +26,7 @@ import { FilteredImage } from "@/components/filters/FilteredImage";
 /** Target on-screen size (CSS px) for the placeholder hint, regardless of the
  *  stage scale / export size. Divided by `scale` at the call site to convert
  *  into the stage's logical units. */
-const PLACEHOLDER_FONT_PX = 18;
+const PLACEHOLDER_FONT_PX = 16;
 
 /** Swap-area guide border style, in on-screen px (divided by `scale` to use). */
 const GUIDE_STROKE_PX = 1.5;
@@ -55,11 +55,9 @@ function Placeholder({
 }) {
   return (
     <Group onMouseDown={onActivate} onTap={onActivate}>
-      <Rect x={0} y={0} width={tileW} height={tileH} fill={muted} />
+      <Rect x={0} y={0} width={tileW} height={tileH} stroke={mutedFg} strokeWidth={1} />
       <Text
         text="Drop or click to upload"
-        x={0}
-        y={0}
         width={tileW}
         height={tileH}
         align="center"
@@ -87,12 +85,12 @@ export function SwapCollagePreview() {
   // tokens directly proved unreliable).
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
-  const [pal, setPal] = useState({ muted: "#e5e7eb", mutedFg: "#6b7280" });
+  const [pal, setPal] = useState({ muted: "", mutedFg: "" });
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const s = getComputedStyle(el);
-    setPal({ muted: s.backgroundColor || "#e5e7eb", mutedFg: s.color || "#6b7280" });
+    setPal({ muted: s.backgroundColor, mutedFg: s.color });
   }, [resolvedTheme]);
 
   useEffect(() => {
@@ -298,9 +296,8 @@ export function SwapCollagePreview() {
                       y={origin.y + maskPx.y}
                       width={maskPx.w}
                       height={maskPx.h}
-                      stroke={pal.mutedFg}
-                      strokeWidth={GUIDE_STROKE_PX / scale}
-                      dash={GUIDE_DASH_PX.map((d) => d / scale)}
+                      fill={pal.mutedFg}
+                      opacity={0.2}
                       listening={false}
                     />
                   )}

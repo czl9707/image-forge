@@ -51,7 +51,7 @@ export function StudioShell() {
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink asChild>
-                    <NavLink to={`/${registry[0].id}`}>Collage Studio</NavLink>
+                    <NavLink to={`/${registry[0].id}`}>Image Forge</NavLink>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
