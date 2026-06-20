@@ -1,5 +1,5 @@
 // src/generators/swap-collage/dimensions.ts
-import type { AspectId, Orientation } from "./swapReducer";
+import type { AspectId, Orientation, Slot } from "./swapReducer";
 
 export interface Dims {
   cw: number;
@@ -51,6 +51,21 @@ export function tileLayout(
     A: { x: 0, y: 0 },
     B: { x: 0, y: ch / 2 },
   };
+}
+
+/** Which half of the canvas a point falls in — A is always the first (left or
+ *  top) tile, mirroring the A/B assignment in `tileLayout`. Coordinates and
+ *  dimensions may be in any consistent units (logical px, display px, …) since
+ *  the split is on the midline. */
+export function pointToSlot(
+  orientation: Orientation,
+  x: number,
+  y: number,
+  cw: number,
+  ch: number,
+): Slot {
+  if (orientation === "lr") return x < cw / 2 ? "A" : "B";
+  return y < ch / 2 ? "A" : "B";
 }
 
 export interface Display {

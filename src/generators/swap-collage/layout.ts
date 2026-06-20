@@ -98,6 +98,30 @@ export function solveSwapLayout(input: SwapLayoutInput): SwapLayout {
 }
 
 /**
+ * Inverse of `toPixels(mask, tileW, tileH)`: read a mask handle's pixel
+ * geometry back to the shared normalized mask, expressed relative to its tile
+ * origin. Pure — the caller reads x/y/width/height off the Konva node and
+ * passes them in. Mirrors `solveTransform` for the mask instead of the image.
+ */
+export function solveMask(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  originX: number,
+  originY: number,
+  tileW: number,
+  tileH: number,
+): Rect {
+  return {
+    x: (x - originX) / tileW,
+    y: (y - originY) / tileH,
+    w: width / tileW,
+    h: height / tileH,
+  };
+}
+
+/**
  * Inverse of `placement`: read a node's pixel geometry back to a
  * resolution-stable transform. The position is clamped to the cover window
  * first, so a drag can never store a transform that would reveal an empty edge.
