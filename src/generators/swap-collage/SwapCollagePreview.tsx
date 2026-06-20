@@ -51,25 +51,21 @@ function Placeholder({
   mutedFg: string;
   onActivate: () => void;
 }) {
+  const strip = placeholderTextStrip(tileH);
   return (
     <Group onMouseDown={onActivate} onTap={onActivate}>
       <Rect x={0} y={0} width={tileW} height={tileH} stroke={mutedFg} strokeWidth={1} />
-      {(() => {
-        const strip = placeholderTextStrip(tileH);
-        return (
-          <Text
-            text="Drop or click to upload"
-            width={tileW}
-            y={strip.y}
-            height={strip.height}
-            align="center"
-            verticalAlign="middle"
-            fontSize={fontSize}
-            fill={mutedFg}
-            listening={false}
-          />
-        );
-      })()}
+      <Text
+        text="Drop or click to upload"
+        width={tileW}
+        y={strip.y}
+        height={strip.height}
+        align="center"
+        verticalAlign="middle"
+        fontSize={fontSize}
+        fill={mutedFg}
+        listening={false}
+      />
     </Group>
   );
 }
