@@ -1,6 +1,5 @@
 // src/generators/swap-collage/SwapCollagePreview.tsx
 import {
-  Fragment,
   useEffect,
   useRef,
   useState,
@@ -79,44 +78,26 @@ function Placeholder({
  */
 function MaskOverlay({
   origin,
-  show,
   maskPx,
-  mutedFg,
   onHandleDrag,
 }: {
   origin: { x: number; y: number };
-  show: boolean;
   maskPx: RectGeom;
-  mutedFg: string;
   onHandleDrag: (node: Konva.Rect) => void;
 }) {
   const x = origin.x + maskPx.x;
   const y = origin.y + maskPx.y;
   return (
-    <Fragment>
-      {show && (
-        <Rect
-          name="overlay"
-          x={x}
-          y={y}
-          width={maskPx.w}
-          height={maskPx.h}
-          fill={mutedFg}
-          opacity={0.2}
-          listening={false}
-        />
-      )}
-      <Rect
-        name="overlay"
-        x={x}
-        y={y}
-        width={maskPx.w}
-        height={maskPx.h}
-        fill="rgba(0,0,0,0)"
-        draggable
-        onDragMove={(e) => onHandleDrag(e.target as Konva.Rect)}
-      />
-    </Fragment>
+    <Rect
+      name="overlay"
+      x={x}
+      y={y}
+      width={maskPx.w}
+      height={maskPx.h}
+      fill="rgba(0,0,0,0)"
+      draggable
+      onDragMove={(e) => onHandleDrag(e.target as Konva.Rect)}
+    />
   );
 }
 
@@ -292,7 +273,7 @@ export function SwapCollagePreview() {
             onActivate={() => openPicker(slot)}
           />
         )}
-        {overlay && otherBmp && (
+        {overlay && otherBmp ? (
           <Group clip={{ x: maskPx.x, y: maskPx.y, width: maskPx.w, height: maskPx.h }}>
             <FilteredImage
               stack={slot === "A" ? state.filtersB : state.filtersA}
@@ -301,6 +282,15 @@ export function SwapCollagePreview() {
               listening={false}
             />
           </Group>
+        ) : (
+          <Rect
+            x={maskPx.x}
+            y={maskPx.y}
+            width={maskPx.w}
+            height={maskPx.h}
+            fill={mutedFg}
+            listening={false}
+          />
         )}
       </Group>
     );
@@ -331,9 +321,7 @@ export function SwapCollagePreview() {
             <MaskOverlay
               key={slot}
               origin={tiles[slot]}
-              show={slotImages[slot].status !== "ready"}
               maskPx={maskPx}
-              mutedFg={mutedFg}
               onHandleDrag={(node) => onMaskTransform(slot, node)}
             />
           ))}
