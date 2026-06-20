@@ -69,13 +69,11 @@ function Placeholder({
   );
 }
 
-/**
- * One tile's worth of mask UI: a translucent guide (shown only while this tile's
- * own image is still missing) plus an invisible draggable handle. Both are
- * positioned in canvas coords as `origin + maskPx` and tagged `name="overlay"`
- * so exportImage can hide them for the snapshot. The handle reports its live
- * node back up via `onHandleDrag`, which maps it into the shared normalized mask.
- */
+/** One tile's invisible draggable mask handle, positioned in canvas coords as
+ *  `origin + maskPx` and tagged `name="overlay"` so exportImage can hide it for
+ *  the snapshot. It reports its live node back up via `onHandleDrag`, which maps
+ *  it into the shared normalized mask. (The visible swap box — opaque placeholder
+ *  or the other slot's image — is rendered inside `renderTile`.) */
 function MaskOverlay({
   origin,
   maskPx,
