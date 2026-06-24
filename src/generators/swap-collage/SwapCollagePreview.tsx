@@ -256,8 +256,8 @@ export function SwapCollagePreview() {
 
         {/* Drop-target highlight + mask drag handles. Top layer, unclipped, canvas
             coords. The highlight lives here (not in the clipped tile Group) so the
-            3px border isn't half-clipped at the tile edge. strokeWidth is divided
-            by `scale` so it renders a consistent ~3 CSS px regardless of stage zoom. */}
+            2px border isn't half-clipped at the tile edge. strokeWidth is divided
+            by `scale` so it renders a consistent ~2 CSS px regardless of stage zoom. */}
         <Layer>
           {SLOTS.map((slot) => {
             const origin = tiles[slot];
