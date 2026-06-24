@@ -8,8 +8,8 @@ import {
 } from "react";
 import { Group, Layer, Rect, Stage, Text } from "react-konva";
 import type Konva from "konva";
-import { useTheme } from "next-themes";
 import { useSwapCollage } from "./SwapCollageProvider";
+import { useThemeColors } from "@/hooks/useThemeColors";
 import {
   canvasDims,
   containFit,
@@ -36,14 +36,14 @@ const PLACEHOLDER_FONT_PX = 16;
  * same Stage as real images (no separate HTML path, no async image decode).
  * A small centered hint over a 1px outline. Clicking it opens the file dialog;
  * it is never draggable or selectable for transform — only real images are.
+ *
+ * Reads its own theme colors via useThemeColors — no color props from upstream.
  */
 function Placeholder({
   tileW,
   tileH,
   fontSize,
   strokeWidth,
-  mutedFg,
-  accentFg,
   highlighted,
   onActivate,
 }: {
@@ -51,14 +51,13 @@ function Placeholder({
   tileH: number;
   fontSize: number;
   strokeWidth: number;
-  mutedFg: string;
-  accentFg: string;
   highlighted: boolean;
   onActivate: () => void;
 }) {
+  const { mutedForeground, primary } = useThemeColors();
   const strip = placeholderTextStrip(tileH);
-  // When this tile is the drop target, the placeholder text turns accent.
-  const textColor = highlighted && accentFg ? accentFg : mutedFg;
+  // When this tile is the drop target, the placeholder text turns primary.
+  const textColor = highlighted && primary ? primary : mutedForeground;
   // The outline is inset by half its (screen-consistent) stroke width so the
   // full stroke lands inside the tile clip. Otherwise the clip eats the outer
   // half at the right/bottom edges and the shared A/B seam, leaving a sub-pixel
@@ -73,7 +72,7 @@ function Placeholder({
         y={strokeWidth / 2}
         width={tileW - strokeWidth}
         height={tileH - strokeWidth}
-        stroke={mutedFg}
+        stroke={mutedForeground}
         strokeWidth={strokeWidth}
       />
       <Text
@@ -88,6 +87,59 @@ function Placeholder({
         listening={false}
       />
     </Group>
+  );
+}
+
+/** The opaque placeholder shown in the swap box when a tile has no overlay
+ *  image: a canvas-background-filled cutout with a muted outline. Reads its own
+ *  theme colors via useThemeColors. */
+function SwapBoxPlaceholder({ x, y, w, h }: RectGeom) {
+  const { mutedForeground, background } = useThemeColors();
+  return (
+    <Rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      fill={background}
+      stroke={mutedForeground}
+      strokeWidth={1}
+      listening={false}
+    />
+  );
+}
+
+/** The accent border drawn over the tile a file is being dragged onto. Lives on
+ *  the unclipped top Layer so the 3px stroke isn't half-clipped at the tile
+ *  edge; strokeWidth is divided by `scale` for a consistent ~3 CSS px regardless
+ *  of stage zoom. Reads its own theme color via useThemeColors. */
+function DropHighlight({
+  x,
+  y,
+  width,
+  height,
+  scale,
+  visible,
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+  visible: boolean;
+}) {
+  const { primary } = useThemeColors();
+  return (
+    <Rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      stroke={primary}
+      strokeWidth={2 / scale}
+      visible={visible}
+      listening={false}
+    />
   );
 }
 
@@ -132,27 +184,6 @@ export function SwapCollagePreview() {
     A: useRef<HTMLInputElement>(null),
     B: useRef<HTMLInputElement>(null),
   };
-
-  // Off-screen sentinel wearing the muted-foreground Tailwind class; we read its
-  // computed text color. That yields a resolved rgb() value that Konva/canvas
-  // always accepts and that tracks light/dark correctly (reading the raw oklch
-  // token directly proved unreliable). Child spans wear text-primary and
-  // bg-background so we read resolved accent + background colors from the SAME
-  // sentinel (no extra sentinels). querySelector by class so order doesn't matter.
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
-  const [mutedFg, setMutedFg] = useState("");
-  const [accentFg, setAccentFg] = useState("");
-  const [bgColor, setBgColor] = useState("");
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    setMutedFg(getComputedStyle(el).color);
-    const accent = el.querySelector(".text-primary");
-    if (accent) setAccentFg(getComputedStyle(accent).color);
-    const bg = el.querySelector(".bg-background");
-    if (bg) setBgColor(getComputedStyle(bg).backgroundColor);
-  }, [resolvedTheme]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -319,8 +350,6 @@ export function SwapCollagePreview() {
             tileH={tiles.tileH}
             fontSize={PLACEHOLDER_FONT_PX / scale}
             strokeWidth={1 / scale}
-            mutedFg={mutedFg}
-            accentFg={accentFg}
             highlighted={hoveredSlot === slot}
             onActivate={() => openPicker(slot)}
           />
@@ -335,16 +364,7 @@ export function SwapCollagePreview() {
             />
           </Group>
         ) : (
-          <Rect
-            x={maskPx.x}
-            y={maskPx.y}
-            width={maskPx.w}
-            height={maskPx.h}
-            fill={bgColor}
-            stroke={mutedFg}
-            strokeWidth={1}
-            listening={false}
-          />
+          <SwapBoxPlaceholder x={maskPx.x} y={maskPx.y} w={maskPx.w} h={maskPx.h} />
         )}
       </Group>
     );
@@ -378,16 +398,14 @@ export function SwapCollagePreview() {
           {SLOTS.map((slot) => {
             const origin = tiles[slot];
             return (
-              <Rect
+              <DropHighlight
                 key={`drop-${slot}`}
                 x={origin.x}
                 y={origin.y}
                 width={tiles.tileW}
                 height={tiles.tileH}
-                stroke={accentFg}
-                strokeWidth={3 / scale}
+                scale={scale}
                 visible={hoveredSlot === slot}
-                listening={false}
               />
             );
           })}
@@ -414,17 +432,6 @@ export function SwapCollagePreview() {
         />
       ))}
 
-      {/* Sentinel: wears muted-foreground so we can read the resolved theme color;
-          child spans wear text-primary and bg-background so we read resolved
-          accent + background colors too. */}
-      <div
-        ref={sentinelRef}
-        aria-hidden
-        className="text-muted-foreground pointer-events-none absolute h-0 w-0 opacity-0"
-      >
-        <span className="text-primary" />
-        <span className="bg-background" />
-      </div>
     </div>
   );
 }
