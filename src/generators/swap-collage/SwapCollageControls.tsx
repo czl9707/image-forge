@@ -1,19 +1,8 @@
 // src/generators/swap-collage/SwapCollageControls.tsx
-import { useRef, useState, type ChangeEvent } from "react";
-import {
-  AlertTriangle,
-  Columns2,
-  Download,
-  Image as ImageIcon,
-  Loader2,
-  Rows2,
-  Upload,
-  X,
-} from "lucide-react";
+import { useState } from "react";
+import { Columns2, Download, Rows2 } from "lucide-react";
 import { useSwapCollage } from "./SwapCollageProvider";
 import { type ExportFormat } from "@/export";
-import { type ImgStatus } from "@/hooks/useImageBitmap";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,105 +24,8 @@ import { MASK_MIN } from "./swapReducer";
 import type { AspectId, Orientation } from "./swapReducer";
 import { canvasDims } from "@/lib/canvas/dimensions";
 import { tileLayout } from "./dimensions";
-import { FilterStackControls } from "@/components/filters/FilterStackControls";
 import { FieldLabel } from "@/components/canvas/FieldLabel";
-
-/** A single source affordance per image: empty → "Choose source", ready → the
- *  filename, error → the message. The whole bar opens the file picker (replace);
- *  the ✕ at the right edge clears. The filename/error IS the status — there is
- *  no separate status line. */
-function SourceControl({
-  name,
-  status,
-  error,
-  onReplace,
-  onClear,
-}: {
-  name: string | null;
-  status: ImgStatus;
-  error: string | null;
-  onReplace: () => void;
-  onClear: () => void;
-}) {
-  const busy = status === "loading";
-  const ready = status === "ready";
-  const isError = status === "error";
-  return (
-    <div className="flex flex-col gap-1.5">
-      <FieldLabel>Source</FieldLabel>
-      <div className="relative">
-        <Button
-          type="button"
-          variant="outline"
-          className={cn(
-            "h-9 w-full justify-start gap-2 font-normal text-muted-foreground",
-            ready && "pr-9 text-foreground",
-          )}
-          disabled={busy}
-          onClick={onReplace}
-        >
-          {busy ? (
-            <Loader2 className="animate-spin" />
-          ) : ready ? (
-            <ImageIcon />
-          ) : isError ? (
-            <AlertTriangle className="text-destructive" />
-          ) : (
-            <Upload />
-          )}
-          <span className={cn("truncate", isError && "text-destructive")}>
-            {ready
-              ? name
-              : isError
-                ? error ?? "error"
-                : busy
-                  ? "Loading…"
-                  : "Choose source"}
-          </span>
-        </Button>
-        {ready && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-            onClick={onClear}
-            aria-label="Clear source"
-          >
-            <X />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ZoomControls({
-  zoom,
-  onChange,
-  disabled,
-}: {
-  zoom: number;
-  onChange: (zoom: number) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <FieldLabel>Zoom</FieldLabel>
-        <span className="text-xs text-muted-foreground">{zoom.toFixed(2)}x</span>
-      </div>
-      <Slider
-        value={[zoom]}
-        min={1}
-        max={4}
-        step={0.01}
-        disabled={disabled}
-        onValueChange={([v]) => onChange(v)}
-      />
-    </div>
-  );
-}
+import { ImageSlotControls } from "@/components/canvas/ImageSlotControls";
 
 /** A swap-size dimension in px: drag the slider OR type a whole-pixel value
  *  (clamped to the tile dimension, at least MASK_MIN of it). The field is
@@ -214,16 +106,8 @@ export function SwapCollageControls() {
   const { imgA, imgB, loadImage, clearImage, state, dispatch, exportImage } =
     useSwapCollage();
   const [format, setFormat] = useState<ExportFormat>("png");
-  const fileA = useRef<HTMLInputElement>(null);
-  const fileB = useRef<HTMLInputElement>(null);
 
   const bothReady = imgA.status === "ready" && imgB.status === "ready";
-
-  const onPick = (slot: "A" | "B") => (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) loadImage(slot, f);
-    e.target.value = "";
-  };
 
   const onExport = () => exportImage(format);
 
@@ -241,69 +125,51 @@ export function SwapCollageControls() {
         <AccordionItem value="image-a">
           <AccordionTrigger>Image A</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <SourceControl
-              name={imgA.name}
-              status={imgA.status}
-              error={imgA.error}
-              onReplace={() => fileA.current?.click()}
-              onClear={() => clearImage("A")}
-            />
-            <input ref={fileA} type="file" accept="image/*" hidden onChange={onPick("A")} />
             {/* Sizing lives here, not on the canvas: a zoom slider per loaded
                 image (zoom is a scalar), and width/height for the shared swap
                 box. The canvas is position-only — see SwapCollagePreview. */}
-            <ZoomControls
+            <ImageSlotControls
+              name={imgA.name}
+              status={imgA.status}
+              error={imgA.error}
               zoom={state.xformA.zoom}
-              disabled={imgA.status !== "ready"}
-              onChange={(z) =>
+              onZoom={(z) =>
                 dispatch({
                   type: "SET_XFORM",
                   slot: "A",
                   xform: { ...state.xformA, zoom: z },
                 })
               }
+              filters={state.filtersA}
+              onFilters={(f) => dispatch({ type: "SET_FILTERS", slot: "A", filters: f })}
+              disabled={imgA.status !== "ready"}
+              onPick={(file) => loadImage("A", file)}
+              onClear={() => clearImage("A")}
             />
-            <div className="flex flex-col gap-2">
-              <FieldLabel>Filters</FieldLabel>
-              <FilterStackControls
-                stack={state.filtersA}
-                onChange={(f) => dispatch({ type: "SET_FILTERS", slot: "A", filters: f })}
-                disabled={imgA.status !== "ready"}
-              />
-            </div>
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="image-b">
           <AccordionTrigger>Image B</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <SourceControl
+            <ImageSlotControls
               name={imgB.name}
               status={imgB.status}
               error={imgB.error}
-              onReplace={() => fileB.current?.click()}
-              onClear={() => clearImage("B")}
-            />
-            <input ref={fileB} type="file" accept="image/*" hidden onChange={onPick("B")} />
-            <ZoomControls
               zoom={state.xformB.zoom}
-              disabled={imgB.status !== "ready"}
-              onChange={(z) =>
+              onZoom={(z) =>
                 dispatch({
                   type: "SET_XFORM",
                   slot: "B",
                   xform: { ...state.xformB, zoom: z },
                 })
               }
+              filters={state.filtersB}
+              onFilters={(f) => dispatch({ type: "SET_FILTERS", slot: "B", filters: f })}
+              disabled={imgB.status !== "ready"}
+              onPick={(file) => loadImage("B", file)}
+              onClear={() => clearImage("B")}
             />
-            <div className="flex flex-col gap-2">
-              <FieldLabel>Filters</FieldLabel>
-              <FilterStackControls
-                stack={state.filtersB}
-                onChange={(f) => dispatch({ type: "SET_FILTERS", slot: "B", filters: f })}
-                disabled={imgB.status !== "ready"}
-              />
-            </div>
           </AccordionContent>
         </AccordionItem>
 
