@@ -1,17 +1,12 @@
 // src/generators/swap-collage/SwapCollagePreview.tsx
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-} from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Group, Layer, Rect, Stage } from "react-konva";
 import type Konva from "konva";
 import { useSwapCollage } from "./SwapCollageProvider";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { DropHighlight } from "@/components/canvas/DropHighlight";
 import { EmptySlotPlaceholder } from "@/components/canvas/EmptySlotPlaceholder";
+import { useFileDrop } from "@/components/canvas/useFileDrop";
 import { canvasDims } from "@/lib/canvas/dimensions";
 import { containFit } from "@/lib/canvas/fit";
 import { pointToSlot, tileLayout } from "./dimensions";
@@ -124,10 +119,6 @@ export function SwapCollagePreview() {
   });
   const { maskPx } = layout;
 
-  // The tile under the cursor during a file drag, or null. Purely view state —
-  // not in swapReducer — driving the drop-target highlight.
-  const [hoveredSlot, setHoveredSlot] = useState<Slot | null>(null);
-
   const openPicker = (slot: Slot) => fileRefs[slot].current?.click();
 
   const onPickFile = (slot: Slot) => (e: ChangeEvent<HTMLInputElement>) => {
@@ -136,44 +127,14 @@ export function SwapCollagePreview() {
     e.target.value = "";
   };
 
-  // Map a drag/drop cursor position to the tile (A/B) it's over. The stage
-  // canvas is centered in the container, so we map against the canvas's own
-  // bounding rect; pointToSlot owns which half is which (mirroring the A/B
-  // assignment in tileLayout). Shared by the highlight (onDragOver) and the
-  // drop (onDrop) so they can't drift apart.
-  const clientToSlot = (clientX: number, clientY: number): Slot | null => {
-    const rect = stageRef.current?.container().getBoundingClientRect();
-    if (!rect) return null;
-    return pointToSlot(
-      state.orientation,
-      clientX - rect.left,
-      clientY - rect.top,
-      rect.width,
-      rect.height,
-    );
-  };
-
-  // Track which tile the cursor is over during a drag, for the highlight.
-  // preventDefault so the browser allows the drop; only update state when the
-  // slot actually changes to avoid re-render churn on every mousemove.
-  const onDragOverFile = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const slot = clientToSlot(e.clientX, e.clientY);
-    setHoveredSlot((prev) => (prev === slot ? prev : slot));
-  };
-
-  // Drop → load the file into the tile under the cursor (if any), then clear
-  // the highlight. NOTE: onDragLeave clears unconditionally, which can flicker
-  // when crossing internal element boundaries — accepted per the spec; a
-  // drag-counter is the documented fallback if it proves noticeable.
-  const onDropFile = (e: DragEvent<HTMLDivElement>) => {
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    e.preventDefault();
-    const slot = clientToSlot(e.clientX, e.clientY);
-    if (slot) loadImage(slot, file);
-    setHoveredSlot(null);
-  };
+  // Image-file drag-and-drop over the stage. The hook owns the generic drag
+  // mechanics + the drop-target highlight state; we supply the A/B slot mapping
+  // (`pointToSlot`) and the load action.
+  const { dropProps, hoveredTarget } = useFileDrop<Slot>({
+    stageRef,
+    resolve: (x, y, w, h) => pointToSlot(state.orientation, x, y, w, h),
+    onDrop: (file, slot) => loadImage(slot, file),
+  });
 
   const onImageTransform = (slot: Slot, node: Konva.Image | null) => {
     const bmp = slotImages[slot].bitmap;
@@ -255,7 +216,7 @@ export function SwapCollagePreview() {
             tileH={tiles.tileH}
             fontSize={PLACEHOLDER_FONT_PX / scale}
             strokeWidth={1 / scale}
-            highlighted={hoveredSlot === slot}
+            highlighted={hoveredTarget === slot}
             onActivate={() => openPicker(slot)}
           />
         )}
@@ -279,9 +240,7 @@ export function SwapCollagePreview() {
     <div
       ref={containerRef}
       className="flex h-full w-full items-center justify-center"
-      onDragOver={onDragOverFile}
-      onDragLeave={() => setHoveredSlot(null)}
-      onDrop={onDropFile}
+      {...dropProps}
     >
       <Stage
         ref={stageRef as unknown as React.Ref<Konva.Stage>}
@@ -310,7 +269,7 @@ export function SwapCollagePreview() {
                 width={tiles.tileW}
                 height={tiles.tileH}
                 scale={scale}
-                visible={hoveredSlot === slot}
+                visible={hoveredTarget === slot}
               />
             );
           })}
