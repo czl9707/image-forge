@@ -5,13 +5,6 @@ import { useSwapCollage } from "./SwapCollageProvider";
 import { type ExportFormat } from "@/export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
   Accordion,
@@ -26,6 +19,7 @@ import { canvasDims } from "@/lib/canvas/dimensions";
 import { tileLayout } from "./dimensions";
 import { FieldLabel } from "@/components/canvas/FieldLabel";
 import { ImageSlotControls } from "@/components/canvas/ImageSlotControls";
+import { ExportControls } from "@/components/canvas/ExportControls";
 
 /** A swap-size dimension in px: drag the slider OR type a whole-pixel value
  *  (clamped to the tile dimension, at least MASK_MIN of it). The field is
@@ -226,32 +220,12 @@ export function SwapCollageControls() {
         <AccordionItem value="export">
           <AccordionTrigger>Export</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <FieldLabel>Export size</FieldLabel>
-              <Select
-                value={String(state.exportSize)}
-                onValueChange={(v) =>
-                  dispatch({ type: "SET_EXPORT_SIZE", size: Number(v) })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1080">1080px</SelectItem>
-                  <SelectItem value="2160">2160px</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel>Format</FieldLabel>
-              <Tabs value={format} onValueChange={(v) => setFormat(v as ExportFormat)}>
-                <TabsList className="w-full">
-                  <TabsTrigger value="png">PNG</TabsTrigger>
-                  <TabsTrigger value="jpg">JPG</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+            <ExportControls
+              size={state.exportSize}
+              onSize={(n) => dispatch({ type: "SET_EXPORT_SIZE", size: n })}
+              format={format}
+              onFormat={(f) => setFormat(f)}
+            />
           </AccordionContent>
         </AccordionItem>
       </Accordion>
