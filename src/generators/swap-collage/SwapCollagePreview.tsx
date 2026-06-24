@@ -6,11 +6,13 @@ import {
   type ChangeEvent,
   type DragEvent,
 } from "react";
-import { Group, Layer, Rect, Stage, Text } from "react-konva";
+import { Group, Layer, Rect, Stage } from "react-konva";
 import type Konva from "konva";
 import { useSwapCollage } from "./SwapCollageProvider";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import { canvasDims, placeholderTextStrip } from "@/lib/canvas/dimensions";
+import { DropHighlight } from "@/components/canvas/DropHighlight";
+import { EmptySlotPlaceholder } from "@/components/canvas/EmptySlotPlaceholder";
+import { canvasDims } from "@/lib/canvas/dimensions";
 import { containFit } from "@/lib/canvas/fit";
 import { pointToSlot, tileLayout } from "./dimensions";
 import { solveMask, solveSwapLayout, solveTransform } from "./layout";
@@ -27,65 +29,6 @@ const SLOTS = ["A", "B"] as const satisfies readonly Slot[];
  *  into the stage's logical units. */
 const PLACEHOLDER_FONT_PX = 16;
 
-/**
- * Empty-slot placeholder, drawn with Konva shapes so it lives natively on the
- * same Stage as real images (no separate HTML path, no async image decode).
- * A small centered hint over a 1px outline. Clicking it opens the file dialog;
- * it is never draggable or selectable for transform — only real images are.
- *
- * Reads its own theme colors via useThemeColors — no color props from upstream.
- */
-function Placeholder({
-  tileW,
-  tileH,
-  fontSize,
-  strokeWidth,
-  highlighted,
-  onActivate,
-}: {
-  tileW: number;
-  tileH: number;
-  fontSize: number;
-  strokeWidth: number;
-  highlighted: boolean;
-  onActivate: () => void;
-}) {
-  const { mutedForeground, primary } = useThemeColors();
-  const strip = placeholderTextStrip(tileH);
-  // When this tile is the drop target, the placeholder text turns primary.
-  const textColor = highlighted && primary ? primary : mutedForeground;
-  // The outline is inset by half its (screen-consistent) stroke width so the
-  // full stroke lands inside the tile clip. Otherwise the clip eats the outer
-  // half at the right/bottom edges and the shared A/B seam, leaving a sub-pixel
-  // sliver that aliases away at many stage scales (the "border sometimes
-  // hidden" bug). strokeWidth is in logical units, so divide by scale for a
-  // true ~1 CSS px border. Adjacent empty tiles share a ~2px divider, which
-  // reads as a normal box seam.
-  return (
-    <Group onMouseDown={onActivate} onTap={onActivate}>
-      <Rect
-        x={strokeWidth / 2}
-        y={strokeWidth / 2}
-        width={tileW - strokeWidth}
-        height={tileH - strokeWidth}
-        stroke={mutedForeground}
-        strokeWidth={strokeWidth}
-      />
-      <Text
-        text="Drop or click to upload"
-        width={tileW}
-        y={strip.y}
-        height={strip.height}
-        align="center"
-        verticalAlign="middle"
-        fontSize={fontSize}
-        fill={textColor}
-        listening={false}
-      />
-    </Group>
-  );
-}
-
 /** The opaque placeholder shown in the swap box when a tile has no overlay
  *  image: a canvas-background-filled cutout with a muted outline. Reads its own
  *  theme colors via useThemeColors. */
@@ -100,40 +43,6 @@ function SwapBoxPlaceholder({ x, y, w, h }: RectGeom) {
       fill={background}
       stroke={mutedForeground}
       strokeWidth={1}
-      listening={false}
-    />
-  );
-}
-
-/** The accent border drawn over the tile a file is being dragged onto. Lives on
- *  the unclipped top Layer so the 3px stroke isn't half-clipped at the tile
- *  edge; strokeWidth is divided by `scale` for a consistent ~3 CSS px regardless
- *  of stage zoom. Reads its own theme color via useThemeColors. */
-function DropHighlight({
-  x,
-  y,
-  width,
-  height,
-  scale,
-  visible,
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  scale: number;
-  visible: boolean;
-}) {
-  const { primary } = useThemeColors();
-  return (
-    <Rect
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      stroke={primary}
-      strokeWidth={2 / scale}
-      visible={visible}
       listening={false}
     />
   );
@@ -341,7 +250,7 @@ export function SwapCollagePreview() {
             onDragMove={(e) => clampAndCommit(slot, e.target as Konva.Image)}
           />
         ) : (
-          <Placeholder
+          <EmptySlotPlaceholder
             tileW={tiles.tileW}
             tileH={tiles.tileH}
             fontSize={PLACEHOLDER_FONT_PX / scale}
