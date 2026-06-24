@@ -41,6 +41,7 @@ function Placeholder({
   tileW,
   tileH,
   fontSize,
+  strokeWidth,
   mutedFg,
   accentFg,
   highlighted,
@@ -49,19 +50,32 @@ function Placeholder({
   tileW: number;
   tileH: number;
   fontSize: number;
+  strokeWidth: number;
   mutedFg: string;
   accentFg: string;
   highlighted: boolean;
   onActivate: () => void;
 }) {
   const strip = placeholderTextStrip(tileH);
-  // When this tile is the drop target, the placeholder text turns accent so the
-  // user sees the effect on the text as well as the border (which is drawn on
-  // the unclipped top Layer, not here).
+  // When this tile is the drop target, the placeholder text turns accent.
   const textColor = highlighted && accentFg ? accentFg : mutedFg;
+  // The outline is inset by half its (screen-consistent) stroke width so the
+  // full stroke lands inside the tile clip. Otherwise the clip eats the outer
+  // half at the right/bottom edges and the shared A/B seam, leaving a sub-pixel
+  // sliver that aliases away at many stage scales (the "border sometimes
+  // hidden" bug). strokeWidth is in logical units, so divide by scale for a
+  // true ~1 CSS px border. Adjacent empty tiles share a ~2px divider, which
+  // reads as a normal box seam.
   return (
     <Group onMouseDown={onActivate} onTap={onActivate}>
-      <Rect x={0} y={0} width={tileW} height={tileH} stroke={mutedFg} strokeWidth={1} />
+      <Rect
+        x={strokeWidth / 2}
+        y={strokeWidth / 2}
+        width={tileW - strokeWidth}
+        height={tileH - strokeWidth}
+        stroke={mutedFg}
+        strokeWidth={strokeWidth}
+      />
       <Text
         text="Drop or click to upload"
         width={tileW}
@@ -122,18 +136,22 @@ export function SwapCollagePreview() {
   // Off-screen sentinel wearing the muted-foreground Tailwind class; we read its
   // computed text color. That yields a resolved rgb() value that Konva/canvas
   // always accepts and that tracks light/dark correctly (reading the raw oklch
-  // token directly proved unreliable). Its child span wears text-primary so we
-  // read a resolved accent color from the SAME sentinel (no second sentinel).
+  // token directly proved unreliable). Child spans wear text-primary and
+  // bg-background so we read resolved accent + background colors from the SAME
+  // sentinel (no extra sentinels). querySelector by class so order doesn't matter.
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const [mutedFg, setMutedFg] = useState("");
   const [accentFg, setAccentFg] = useState("");
+  const [bgColor, setBgColor] = useState("");
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     setMutedFg(getComputedStyle(el).color);
-    const span = el.firstElementChild as HTMLElement | null;
-    if (span) setAccentFg(getComputedStyle(span).color);
+    const accent = el.querySelector(".text-primary");
+    if (accent) setAccentFg(getComputedStyle(accent).color);
+    const bg = el.querySelector(".bg-background");
+    if (bg) setBgColor(getComputedStyle(bg).backgroundColor);
   }, [resolvedTheme]);
 
   useEffect(() => {
@@ -300,6 +318,7 @@ export function SwapCollagePreview() {
             tileW={tiles.tileW}
             tileH={tiles.tileH}
             fontSize={PLACEHOLDER_FONT_PX / scale}
+            strokeWidth={1 / scale}
             mutedFg={mutedFg}
             accentFg={accentFg}
             highlighted={hoveredSlot === slot}
@@ -321,7 +340,9 @@ export function SwapCollagePreview() {
             y={maskPx.y}
             width={maskPx.w}
             height={maskPx.h}
-            fill={mutedFg}
+            fill={bgColor}
+            stroke={mutedFg}
+            strokeWidth={1}
             listening={false}
           />
         )}
@@ -394,14 +415,15 @@ export function SwapCollagePreview() {
       ))}
 
       {/* Sentinel: wears muted-foreground so we can read the resolved theme color;
-          its child span wears text-primary so a later task can read a resolved
-          accent color too. */}
+          child spans wear text-primary and bg-background so we read resolved
+          accent + background colors too. */}
       <div
         ref={sentinelRef}
         aria-hidden
         className="text-muted-foreground pointer-events-none absolute h-0 w-0 opacity-0"
       >
         <span className="text-primary" />
+        <span className="bg-background" />
       </div>
     </div>
   );
