@@ -1,22 +1,15 @@
 // src/generators/swap-collage/SwapCollagePreview.tsx
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-} from "react";
-import { Group, Layer, Rect, Stage, Text } from "react-konva";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Group, Layer, Rect, Stage } from "react-konva";
 import type Konva from "konva";
-import { useTheme } from "next-themes";
 import { useSwapCollage } from "./SwapCollageProvider";
-import {
-  canvasDims,
-  containFit,
-  placeholderTextStrip,
-  pointToSlot,
-  tileLayout,
-} from "./dimensions";
+import { useThemeColors } from "@/hooks/useThemeColors";
+import { DropHighlight } from "@/components/canvas/DropHighlight";
+import { EmptySlotPlaceholder } from "@/components/canvas/EmptySlotPlaceholder";
+import { useFileDrop } from "@/components/canvas/useFileDrop";
+import { canvasDims } from "@/lib/canvas/dimensions";
+import { containFit } from "@/lib/canvas/fit";
+import { pointToSlot, tileLayout } from "./dimensions";
 import { solveMask, solveSwapLayout, solveTransform } from "./layout";
 import { clampCoverPos } from "@/lib/canvas/fit";
 import type { Rect as RectGeom } from "@/lib/geometry";
@@ -31,41 +24,22 @@ const SLOTS = ["A", "B"] as const satisfies readonly Slot[];
  *  into the stage's logical units. */
 const PLACEHOLDER_FONT_PX = 16;
 
-/**
- * Empty-slot placeholder, drawn with Konva shapes so it lives natively on the
- * same Stage as real images (no separate HTML path, no async image decode).
- * A small centered hint over a 1px outline. Clicking it opens the file dialog;
- * it is never draggable or selectable for transform — only real images are.
- */
-function Placeholder({
-  tileW,
-  tileH,
-  fontSize,
-  mutedFg,
-  onActivate,
-}: {
-  tileW: number;
-  tileH: number;
-  fontSize: number;
-  mutedFg: string;
-  onActivate: () => void;
-}) {
-  const strip = placeholderTextStrip(tileH);
+/** The opaque placeholder shown in the swap box when a tile has no overlay
+ *  image: a canvas-background-filled cutout with a muted outline. Reads its own
+ *  theme colors via useThemeColors. */
+function SwapBoxPlaceholder({ x, y, w, h }: RectGeom) {
+  const { mutedForeground, background } = useThemeColors();
   return (
-    <Group onMouseDown={onActivate} onTap={onActivate}>
-      <Rect x={0} y={0} width={tileW} height={tileH} stroke={mutedFg} strokeWidth={1} />
-      <Text
-        text="Drop or click to upload"
-        width={tileW}
-        y={strip.y}
-        height={strip.height}
-        align="center"
-        verticalAlign="middle"
-        fontSize={fontSize}
-        fill={mutedFg}
-        listening={false}
-      />
-    </Group>
+    <Rect
+      x={x}
+      y={y}
+      width={w}
+      height={h}
+      fill={background}
+      stroke={mutedForeground}
+      strokeWidth={1}
+      listening={false}
+    />
   );
 }
 
@@ -111,19 +85,6 @@ export function SwapCollagePreview() {
     B: useRef<HTMLInputElement>(null),
   };
 
-  // Off-screen element wearing the muted-foreground Tailwind class; we read its
-  // computed text color. That yields a resolved rgb() value that Konva/canvas
-  // always accepts and that tracks light/dark correctly (reading the raw oklch
-  // token directly proved unreliable).
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
-  const [mutedFg, setMutedFg] = useState("");
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    setMutedFg(getComputedStyle(el).color);
-  }, [resolvedTheme]);
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -166,27 +127,14 @@ export function SwapCollagePreview() {
     e.target.value = "";
   };
 
-  // Drag a file onto the canvas → load it into whichever tile is under the
-  // cursor. The stage canvas is centered in the container, so map the drop
-  // point against the canvas's own bounding rect; pointToSlot owns which half
-  // is which (mirroring the A/B assignment in tileLayout).
-  const onDropFile = (e: DragEvent<HTMLDivElement>) => {
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    e.preventDefault();
-    const rect = stageRef.current?.container().getBoundingClientRect();
-    if (!rect) return;
-    loadImage(
-      pointToSlot(
-        state.orientation,
-        e.clientX - rect.left,
-        e.clientY - rect.top,
-        rect.width,
-        rect.height,
-      ),
-      file,
-    );
-  };
+  // Image-file drag-and-drop over the stage. The hook owns the generic drag
+  // mechanics + the drop-target highlight state; we supply the A/B slot mapping
+  // (`pointToSlot`) and the load action.
+  const { dropProps, hoveredTarget } = useFileDrop<Slot>({
+    stageRef,
+    resolve: (x, y, w, h) => pointToSlot(state.orientation, x, y, w, h),
+    onDrop: (file, slot) => loadImage(slot, file),
+  });
 
   const onImageTransform = (slot: Slot, node: Konva.Image | null) => {
     const bmp = slotImages[slot].bitmap;
@@ -263,11 +211,12 @@ export function SwapCollagePreview() {
             onDragMove={(e) => clampAndCommit(slot, e.target as Konva.Image)}
           />
         ) : (
-          <Placeholder
+          <EmptySlotPlaceholder
             tileW={tiles.tileW}
             tileH={tiles.tileH}
             fontSize={PLACEHOLDER_FONT_PX / scale}
-            mutedFg={mutedFg}
+            strokeWidth={1 / scale}
+            highlighted={hoveredTarget === slot}
             onActivate={() => openPicker(slot)}
           />
         )}
@@ -281,14 +230,7 @@ export function SwapCollagePreview() {
             />
           </Group>
         ) : (
-          <Rect
-            x={maskPx.x}
-            y={maskPx.y}
-            width={maskPx.w}
-            height={maskPx.h}
-            fill={mutedFg}
-            listening={false}
-          />
+          <SwapBoxPlaceholder x={maskPx.x} y={maskPx.y} w={maskPx.w} h={maskPx.h} />
         )}
       </Group>
     );
@@ -298,8 +240,7 @@ export function SwapCollagePreview() {
     <div
       ref={containerRef}
       className="flex h-full w-full items-center justify-center"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDropFile}
+      {...dropProps}
     >
       <Stage
         ref={stageRef as unknown as React.Ref<Konva.Stage>}
@@ -313,8 +254,25 @@ export function SwapCollagePreview() {
           {renderTile("B", imgB.bitmap, imgA.bitmap, tiles.B)}
         </Layer>
 
-        {/* Mask drag handles. Top layer, unclipped, canvas coords. */}
+        {/* Drop-target highlight + mask drag handles. Top layer, unclipped, canvas
+            coords. The highlight lives here (not in the clipped tile Group) so the
+            2px border isn't half-clipped at the tile edge. strokeWidth is divided
+            by `scale` so it renders a consistent ~2 CSS px regardless of stage zoom. */}
         <Layer>
+          {SLOTS.map((slot) => {
+            const origin = tiles[slot];
+            return (
+              <DropHighlight
+                key={`drop-${slot}`}
+                x={origin.x}
+                y={origin.y}
+                width={tiles.tileW}
+                height={tiles.tileH}
+                scale={scale}
+                visible={hoveredTarget === slot}
+              />
+            );
+          })}
           {SLOTS.map((slot) => (
             <MaskOverlay
               key={slot}
@@ -338,12 +296,6 @@ export function SwapCollagePreview() {
         />
       ))}
 
-      {/* Sentinel: wears the muted-foreground class so we can read the resolved theme color. */}
-      <div
-        ref={sentinelRef}
-        aria-hidden
-        className="text-muted-foreground pointer-events-none absolute h-0 w-0 opacity-0"
-      />
     </div>
   );
 }

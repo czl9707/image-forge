@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampCoverPos, coverFit } from "../fit";
+import { clampCoverPos, containFit, coverFit } from "../fit";
 
 describe("coverFit", () => {
   it("scales to cover the box (picks the larger scale)", () => {
@@ -88,5 +88,22 @@ describe("clampCoverPos", () => {
       const c = covers(r.x, r.y, w, h);
       expect(c).toEqual({ left: true, top: true, right: true, bottom: true });
     }
+  });
+});
+
+describe("containFit", () => {
+  it("scales down to fit (width-limited)", () => {
+    expect(containFit(1000, 1000, 500, 800)).toEqual({
+      dispW: 500,
+      dispH: 500,
+      scale: 0.5,
+    });
+  });
+  it("scales down to fit (height-limited)", () => {
+    expect(containFit(1000, 1000, 800, 250)).toEqual({
+      dispW: 250,
+      dispH: 250,
+      scale: 0.25,
+    });
   });
 });
