@@ -34,7 +34,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MASK_MIN } from "./swapReducer";
 import type { AspectId, Orientation } from "./swapReducer";
-import { canvasDims, tileLayout } from "./dimensions";
+import { canvasDims } from "@/lib/canvas/dimensions";
+import { tileLayout } from "./dimensions";
 import { FilterStackControls } from "@/components/filters/FilterStackControls";
 
 /** A control label: smaller and lighter than an accordion section title, to

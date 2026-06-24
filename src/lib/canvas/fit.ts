@@ -36,3 +36,20 @@ export function clampCoverPos(
     y: height >= tileH ? Math.min(Math.max(y, tileH - height), 0) : (tileH - height) / 2,
   };
 }
+
+export interface Display {
+  dispW: number;
+  dispH: number;
+  scale: number;
+}
+
+/** Largest uniform scale fitting the logical canvas into the available box. */
+export function containFit(
+  cw: number,
+  ch: number,
+  availW: number,
+  availH: number,
+): Display {
+  const scale = Math.min(availW / cw, availH / ch);
+  return { dispW: cw * scale, dispH: ch * scale, scale };
+}

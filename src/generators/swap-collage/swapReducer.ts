@@ -2,8 +2,8 @@
 import { clampRect, type Rect } from "@/lib/geometry";
 import type { FilterStack } from "@/lib/filters";
 
-export type Orientation = "lr" | "tb";
-export type AspectId = "16:9" | "4:3" | "1:1";
+import type { AspectId, Orientation } from "@/lib/canvas/dimensions";
+export type { AspectId, Orientation };
 export type Selection = "imgA" | "imgB" | "mask" | null;
 export type Slot = "A" | "B";
 

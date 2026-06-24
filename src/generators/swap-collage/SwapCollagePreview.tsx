@@ -10,13 +10,9 @@ import { Group, Layer, Rect, Stage, Text } from "react-konva";
 import type Konva from "konva";
 import { useSwapCollage } from "./SwapCollageProvider";
 import { useThemeColors } from "@/hooks/useThemeColors";
-import {
-  canvasDims,
-  containFit,
-  placeholderTextStrip,
-  pointToSlot,
-  tileLayout,
-} from "./dimensions";
+import { canvasDims, placeholderTextStrip } from "@/lib/canvas/dimensions";
+import { containFit } from "@/lib/canvas/fit";
+import { pointToSlot, tileLayout } from "./dimensions";
 import { solveMask, solveSwapLayout, solveTransform } from "./layout";
 import { clampCoverPos } from "@/lib/canvas/fit";
 import type { Rect as RectGeom } from "@/lib/geometry";
