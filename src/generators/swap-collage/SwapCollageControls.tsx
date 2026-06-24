@@ -1,5 +1,5 @@
 // src/generators/swap-collage/SwapCollageControls.tsx
-import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import {
   AlertTriangle,
   Columns2,
@@ -16,7 +16,6 @@ import { type ImgStatus } from "@/hooks/useImageBitmap";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -37,16 +36,7 @@ import type { AspectId, Orientation } from "./swapReducer";
 import { canvasDims } from "@/lib/canvas/dimensions";
 import { tileLayout } from "./dimensions";
 import { FilterStackControls } from "@/components/filters/FilterStackControls";
-
-/** A control label: smaller and lighter than an accordion section title, to
- *  keep a clear visual hierarchy (section > control > value). */
-function FieldLabel({ children }: { children: ReactNode }) {
-  return (
-    <Label className="text-xs font-normal text-muted-foreground">
-      {children}
-    </Label>
-  );
-}
+import { FieldLabel } from "@/components/canvas/FieldLabel";
 
 /** A single source affordance per image: empty → "Choose source", ready → the
  *  filename, error → the message. The whole bar opens the file picker (replace);
