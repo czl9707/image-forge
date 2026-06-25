@@ -23,7 +23,8 @@ import {
   type Slot,
 } from "./gridRevealReducer";
 
-/** Whole-number grid-dimension input clamped to [MIN_DIM, MAX_DIM]. */
+/** Whole-number grid-dimension input clamped to [MIN_DIM, MAX_DIM], committing
+ *  on every change (controlled) — not only on blur. */
 function DimInput({
   label,
   value,
@@ -33,12 +34,11 @@ function DimInput({
   value: number;
   onChange: (n: number) => void;
 }) {
-  const commit = (raw: string) => {
+  const clamp = (raw: string) => {
     const n = Number(raw);
-    const clamped = Number.isFinite(n)
+    return Number.isFinite(n)
       ? Math.min(MAX_DIM, Math.max(MIN_DIM, Math.round(n)))
       : MIN_DIM;
-    onChange(clamped);
   };
   return (
     <div className="flex flex-col gap-1.5">
@@ -47,13 +47,9 @@ function DimInput({
         type="number"
         min={MIN_DIM}
         max={MAX_DIM}
-        defaultValue={value}
-        key={value}
+        value={value}
         className="h-9"
-        onBlur={(e) => commit(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        }}
+        onChange={(e) => onChange(clamp(e.target.value))}
       />
     </div>
   );
