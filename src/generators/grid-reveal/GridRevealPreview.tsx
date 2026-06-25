@@ -242,7 +242,9 @@ export function GridRevealPreview() {
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
-            onPointerLeave={onPointerUp}
+            onPointerLeave={() => {
+              dragRef.current = null;
+            }}
           />
         </Layer>
       </Stage>
