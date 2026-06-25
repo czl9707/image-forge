@@ -231,35 +231,32 @@ export function GridRevealPreview() {
           )}
         </Layer>
 
-        {/* Border layer: the grey grid skeleton, baked into export. Drawn only
-            when there is at least one image (the empty state uses the upload
-            placeholder instead). */}
-        {!isEmpty && (
-          <Layer listening={false}>
-            {colLines.map((x, i) => (
-              <Rect
-                key={`cv-${i}`}
-                x={x - BORDER_WIDTH / 2}
-                y={0}
-                width={BORDER_WIDTH}
-                height={dims.ch}
-                fill={BORDER_COLOR}
-                opacity={BORDER_OPACITY}
-              />
-            ))}
-            {rowLines.map((y, i) => (
-              <Rect
-                key={`rh-${i}`}
-                x={0}
-                y={y - BORDER_WIDTH / 2}
-                width={dims.cw}
-                height={BORDER_WIDTH}
-                fill={BORDER_COLOR}
-                opacity={BORDER_OPACITY}
-              />
-            ))}
-          </Layer>
-        )}
+        {/* Border layer: the grey grid skeleton, always drawn — even over the
+            empty-canvas upload placeholder — and baked into export. */}
+        <Layer listening={false}>
+          {colLines.map((x, i) => (
+            <Rect
+              key={`cv-${i}`}
+              x={x - BORDER_WIDTH / 2}
+              y={0}
+              width={BORDER_WIDTH}
+              height={dims.ch}
+              fill={BORDER_COLOR}
+              opacity={BORDER_OPACITY}
+            />
+          ))}
+          {rowLines.map((y, i) => (
+            <Rect
+              key={`rh-${i}`}
+              x={0}
+              y={y - BORDER_WIDTH / 2}
+              width={dims.cw}
+              height={BORDER_WIDTH}
+              fill={BORDER_COLOR}
+              opacity={BORDER_OPACITY}
+            />
+          ))}
+        </Layer>
 
         {/* Drop highlight over the whole canvas while dragging a file in. */}
         {hoveredTarget === true && (
