@@ -33,6 +33,31 @@ const PLACEHOLDER_FONT_PX = 16;
 const CELL_LABEL_FONT_PX = 11;
 const CELL_LABEL_INSET = 5;
 
+/**
+ * Trace a Konva clip path through every cell the `paint` predicate accepts.
+ * Used as a Group's `clipFunc` so a single full-canvas image node (filtered and
+ * cached once) can be revealed cell-by-cell without re-rasterizing per cell.
+ * Coordinates are in the layer's logical units; the predicate receives each
+ * cell's showBottom flag.
+ */
+function traceCells(
+  ctx: Konva.Context,
+  grid: ReturnType<typeof cellRects>,
+  cells: boolean[][],
+  paint: (showBottom: boolean) => boolean,
+) {
+  ctx.beginPath();
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      if (paint(cells[r][c])) {
+        const cell = grid[r][c];
+        ctx.rect(cell.x, cell.y, cell.w, cell.h);
+      }
+    }
+  }
+  ctx.closePath();
+}
+
 interface DragState {
   startClientX: number;
   startClientY: number;
@@ -92,6 +117,11 @@ export function GridRevealPreview() {
 
   const bothReady = imgTop.status === "ready" && imgBottom.status === "ready";
   const isEmpty = !topBmp && !bottomBmp;
+  // When one image isn't loaded yet, route ALL cells to the other slot so the
+  // canvas never shows background "holes" during partial load. With both
+  // present these flags are false and each slot paints only its own cells.
+  const topMissing = !topBmp;
+  const bottomMissing = !bottomBmp;
 
   // The empty-canvas placeholder opens a file picker; the chosen file fills the
   // next slot by order (Bottom first, then Top).
@@ -203,36 +233,42 @@ export function GridRevealPreview() {
               onActivate={openPicker}
             />
           ) : (
-            grid.map((row, ri) =>
-              row.map((cell, ci) => {
-                const showBottom = state.cells[ri][ci];
-                const bmp =
-                  (showBottom ? bottomBmp : topBmp) ??
-                  (showBottom ? topBmp : bottomBmp);
-                const place =
-                  (showBottom ? bottomPlace : topPlace) ??
-                  (showBottom ? topPlace : bottomPlace);
-                if (!bmp || !place) return null;
-                const stack =
-                  bmp === bottomBmp ? state.filtersBottom : state.filtersTop;
-                return (
-                  <Group
-                    key={`cell-${ri}-${ci}`}
-                    clip={{ x: cell.x, y: cell.y, width: cell.w, height: cell.h }}
-                  >
-                    <FilteredImage
-                      stack={stack}
-                      image={bmp}
-                      x={place.x}
-                      y={place.y}
-                      width={place.width}
-                      height={place.height}
-                      listening={false}
-                    />
-                  </Group>
-                );
-              }),
-            )
+            <>
+              {bottomPlace && bottomBmp && (
+                <Group
+                  clipFunc={(ctx) =>
+                    traceCells(ctx, grid, state.cells, (showBottom) => showBottom || topMissing)
+                  }
+                >
+                  <FilteredImage
+                    stack={state.filtersBottom}
+                    image={bottomBmp}
+                    x={bottomPlace.x}
+                    y={bottomPlace.y}
+                    width={bottomPlace.width}
+                    height={bottomPlace.height}
+                    listening={false}
+                  />
+                </Group>
+              )}
+              {topPlace && topBmp && (
+                <Group
+                  clipFunc={(ctx) =>
+                    traceCells(ctx, grid, state.cells, (showBottom) => !showBottom || bottomMissing)
+                  }
+                >
+                  <FilteredImage
+                    stack={state.filtersTop}
+                    image={topBmp}
+                    x={topPlace.x}
+                    y={topPlace.y}
+                    width={topPlace.width}
+                    height={topPlace.height}
+                    listening={false}
+                  />
+                </Group>
+              )}
+            </>
           )}
         </Layer>
 
