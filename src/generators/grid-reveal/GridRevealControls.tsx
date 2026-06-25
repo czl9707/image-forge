@@ -1,5 +1,5 @@
 // src/generators/grid-reveal/GridRevealControls.tsx
-import { useRef, useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { Download, Shuffle } from "lucide-react";
 import { useGridReveal } from "./GridRevealProvider";
 import { type ExportFormat } from "@/export";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { FieldLabel } from "@/components/canvas/FieldLabel";
 import { ExportControls } from "@/components/canvas/ExportControls";
+import { ImageSlotControls } from "@/components/canvas/ImageSlotControls";
 import {
   MAX_DIM,
   MIN_DIM,
@@ -21,66 +22,6 @@ import {
   type Orientation,
   type Slot,
 } from "./gridRevealReducer";
-
-/** One slot's source affordance: empty → "Choose source", ready → filename,
- *  error → message. The bar opens the file picker (replace); ✕ clears. Owns its
- *  hidden input. (Lean local copy — the shared ImageSlotControls forces zoom +
- *  filters props that Grid Reveal v1 doesn't have.) */
-function SourceControl({
-  name,
-  status,
-  error,
-  onPick,
-  onClear,
-}: {
-  name: string | null;
-  status: "idle" | "loading" | "ready" | "error";
-  error: string | null;
-  onPick: (file: File) => void;
-  onClear: () => void;
-}) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const busy = status === "loading";
-  const ready = status === "ready";
-  const isError = status === "error";
-
-  const onPickFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) onPick(f);
-    e.target.value = "";
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="relative">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-9 w-full justify-start gap-2 font-normal text-muted-foreground"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-        >
-          <span className={isError ? "text-destructive" : ready ? "text-foreground" : ""}>
-            {ready ? name : isError ? (error ?? "error") : busy ? "Loading…" : "Choose source"}
-          </span>
-        </Button>
-        {ready && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-            onClick={onClear}
-            aria-label="Clear source"
-          >
-            ✕
-          </Button>
-        )}
-      </div>
-      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
-    </div>
-  );
-}
 
 /** Whole-number grid-dimension input clamped to [MIN_DIM, MAX_DIM]. */
 function DimInput({
@@ -144,40 +85,50 @@ export function GridRevealControls() {
         <AccordionItem value="image-top">
           <AccordionTrigger>Top image</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <SourceControl
+            {/* Reuses the shared ImageSlotControls (source + zoom + filters),
+                same as Swap Collage. Pan stays a canvas drag, no sidebar pan. */}
+            <ImageSlotControls
               name={imgTop.name}
               status={imgTop.status}
               error={imgTop.error}
+              zoom={state.xformTop.zoom}
+              onZoom={(z) =>
+                dispatch({
+                  type: "SET_XFORM",
+                  slot: "top",
+                  xform: { ...state.xformTop, zoom: z },
+                })
+              }
+              filters={state.filtersTop}
+              onFilters={(f) => dispatch({ type: "SET_FILTERS", slot: "top", filters: f })}
+              disabled={imgTop.status !== "ready"}
               onPick={(file) => loadImage("top", file)}
               onClear={() => clearImage("top")}
             />
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => dispatch({ type: "RESET_XFORM", slot: "top" })}
-            >
-              Reset pan
-            </Button>
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="image-bottom">
           <AccordionTrigger>Bottom image</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <SourceControl
+            <ImageSlotControls
               name={imgBottom.name}
               status={imgBottom.status}
               error={imgBottom.error}
+              zoom={state.xformBottom.zoom}
+              onZoom={(z) =>
+                dispatch({
+                  type: "SET_XFORM",
+                  slot: "bottom",
+                  xform: { ...state.xformBottom, zoom: z },
+                })
+              }
+              filters={state.filtersBottom}
+              onFilters={(f) => dispatch({ type: "SET_FILTERS", slot: "bottom", filters: f })}
+              disabled={imgBottom.status !== "ready"}
               onPick={(file) => loadImage("bottom", file)}
               onClear={() => clearImage("bottom")}
             />
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => dispatch({ type: "RESET_XFORM", slot: "bottom" })}
-            >
-              Reset pan
-            </Button>
           </AccordionContent>
         </AccordionItem>
 

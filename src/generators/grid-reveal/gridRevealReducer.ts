@@ -1,5 +1,6 @@
 // src/generators/grid-reveal/gridRevealReducer.ts
 import type { AspectId, Orientation } from "@/lib/canvas/dimensions";
+import type { FilterStack } from "@/lib/filters";
 import {
   IDENTITY_XFORM,
   rollStrips,
@@ -23,6 +24,8 @@ export interface GridRevealState {
   cells: boolean[][]; // [rows][cols], false = Top shows
   xformTop: Transform;
   xformBottom: Transform;
+  filtersTop: FilterStack;
+  filtersBottom: FilterStack;
 }
 
 export const DEFAULT_COLS = 4;
@@ -63,6 +66,8 @@ export const initialGridRevealState: GridRevealState = {
   cells: makeCells(DEFAULT_ROWS, DEFAULT_COLS),
   xformTop: { ...IDENTITY_XFORM },
   xformBottom: { ...IDENTITY_XFORM },
+  filtersTop: [],
+  filtersBottom: [],
 };
 
 export type GridRevealAction =
@@ -75,6 +80,7 @@ export type GridRevealAction =
   | { type: "REROLL" }
   | { type: "FLIP_CELL"; row: number; col: number }
   | { type: "SET_XFORM"; slot: Slot; xform: Transform }
+  | { type: "SET_FILTERS"; slot: Slot; filters: FilterStack }
   | { type: "RESET_XFORM"; slot: Slot };
 
 export function gridRevealReducer(
@@ -142,14 +148,20 @@ export function gridRevealReducer(
       return { ...state, cells };
     }
     case "SET_XFORM": {
+      // Pan is clamped to [0,1]; zoom passes through (cover-fit × zoom, ≥1).
       const xform: Transform = {
         panX: clampPan(action.xform.panX),
         panY: clampPan(action.xform.panY),
+        zoom: action.xform.zoom,
       };
       return action.slot === "top"
         ? { ...state, xformTop: xform }
         : { ...state, xformBottom: xform };
     }
+    case "SET_FILTERS":
+      return action.slot === "top"
+        ? { ...state, filtersTop: action.filters }
+        : { ...state, filtersBottom: action.filters };
     case "RESET_XFORM":
       return action.slot === "top"
         ? { ...state, xformTop: { ...IDENTITY_XFORM } }

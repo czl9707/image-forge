@@ -96,15 +96,23 @@ describe("hitTest", () => {
 
 describe("placement", () => {
   it("cover-fits and centers at panX/panY = 0.5", () => {
-    // image 200×100 into 100×100 → scale 1, imgW 200, imgH 100
+    // image 200×100 into 100×100 → scale 1, zoom 1 → imgW 200, imgH 100
     const p = placement(200, 100, 100, 100, IDENTITY_XFORM);
     expect(p).toEqual({ x: -50, y: 0, width: 200, height: 100 });
   });
   it("always covers the viewport at pan extremes", () => {
-    const lo = placement(200, 100, 100, 100, { panX: 0, panY: 0 });
+    const lo = placement(200, 100, 100, 100, { panX: 0, panY: 0, zoom: 1 });
     expect(lo.x).toBe(0); // left edge visible, right covered
-    const hi = placement(200, 100, 100, 100, { panX: 1, panY: 1 });
+    const hi = placement(200, 100, 100, 100, { panX: 1, panY: 1, zoom: 1 });
     expect(hi.x).toBe(-100); // right edge visible, left covered
+  });
+  it("scales the image by zoom and widens the pan range", () => {
+    // zoom 2 → imgW 400, imgH 200; centered → x = -(400-100)*0.5 = -150
+    const p = placement(200, 100, 100, 100, { panX: 0.5, panY: 0.5, zoom: 2 });
+    expect(p).toEqual({ x: -150, y: -50, width: 400, height: 200 });
+    // pan extremes still cover at zoom 2
+    expect(placement(200, 100, 100, 100, { panX: 0, panY: 0, zoom: 2 }).x).toBe(0);
+    expect(placement(200, 100, 100, 100, { panX: 1, panY: 1, zoom: 2 }).x).toBe(-300);
   });
 });
 

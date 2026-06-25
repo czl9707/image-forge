@@ -1,11 +1,12 @@
 // src/generators/grid-reveal/GridRevealPreview.tsx
 import { useEffect, useRef, useState, type Ref } from "react";
-import { Group, Image, Layer, Rect, Stage } from "react-konva";
+import { Group, Layer, Rect, Stage } from "react-konva";
 import type Konva from "konva";
 import { useGridReveal } from "./GridRevealProvider";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useFileDrop } from "@/components/canvas/useFileDrop";
 import { DropHighlight } from "@/components/canvas/DropHighlight";
+import { FilteredImage } from "@/components/filters/FilteredImage";
 import { canvasDims } from "@/lib/canvas/dimensions";
 import { containFit, coverFit } from "@/lib/canvas/fit";
 import {
@@ -117,14 +118,15 @@ export function GridRevealPreview() {
     d.moved = true;
     const bmp = d.slot === "top" ? topBmp : bottomBmp;
     if (!bmp) return;
-    // Slack = how far the cover-fit image exceeds the canvas (logical px).
-    const coverScale = coverFit(bmp.width, bmp.height, dims.cw, dims.ch).scale;
+    // Slack = how far the cover-fit × zoom image exceeds the canvas (logical px).
+    const zoom = d.slot === "top" ? state.xformTop.zoom : state.xformBottom.zoom;
+    const coverScale = coverFit(bmp.width, bmp.height, dims.cw, dims.ch).scale * zoom;
     const slackX = bmp.width * coverScale - dims.cw;
     const slackY = bmp.height * coverScale - dims.ch;
     // Dragging the image right (dx>0) reveals more of its left → panX drops.
     const panX = slackX > 0 ? d.startPanX - dx / scale / slackX : d.startPanX;
     const panY = slackY > 0 ? d.startPanY - dy / scale / slackY : d.startPanY;
-    dispatch({ type: "SET_XFORM", slot: d.slot, xform: { panX, panY } });
+    dispatch({ type: "SET_XFORM", slot: d.slot, xform: { panX, panY, zoom } });
   };
 
   const onPointerUp = () => {
@@ -176,7 +178,8 @@ export function GridRevealPreview() {
                   key={`cell-${ri}-${ci}`}
                   clip={{ x: cell.x, y: cell.y, width: cell.w, height: cell.h }}
                 >
-                  <Image
+                  <FilteredImage
+                    stack={showBottom ? state.filtersBottom : state.filtersTop}
                     image={bmp}
                     x={place.x}
                     y={place.y}

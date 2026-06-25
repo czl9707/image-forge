@@ -23,6 +23,7 @@ import {
   type Slot,
 } from "./gridRevealReducer";
 import type { Transform } from "./layout";
+import type { FilterInstance, FilterKind, FilterStack } from "@/lib/filters";
 
 export interface ImageSlot {
   bitmap: ImageBitmap | null;
@@ -60,8 +61,10 @@ export function GridRevealProvider({ children }: { children: ReactNode }) {
   const clearImage = (slot: Slot) => {
     if (slot === "top") top.reset();
     else bottom.reset();
-    // Clearing an image resets its pan — no stale framing on an empty canvas.
+    // Clearing an image resets its framing AND clears its filters — no stale
+    // transform or look on a now-empty canvas.
     dispatch({ type: "RESET_XFORM", slot });
+    dispatch({ type: "SET_FILTERS", slot, filters: [] });
   };
 
   const exportImage = (format: ExportFormat) => {
@@ -116,4 +119,13 @@ export function useGridReveal(): GridRevealContextValue {
   return ctx;
 }
 
-export type { AspectId, GridMode, Orientation, Slot, Transform };
+export type {
+  AspectId,
+  FilterInstance,
+  FilterKind,
+  FilterStack,
+  GridMode,
+  Orientation,
+  Slot,
+  Transform,
+};

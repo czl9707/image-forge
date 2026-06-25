@@ -14,9 +14,10 @@ export const BORDER_WIDTH = 2; // logical px (NOT divided by stage scale)
 export interface Transform {
   panX: number; // [0,1], 0.5 = centered
   panY: number; // [0,1], 0.5 = centered
+  zoom: number; // multiplier of cover scale (1 = cover)
 }
 
-export const IDENTITY_XFORM: Transform = { panX: 0.5, panY: 0.5 };
+export const IDENTITY_XFORM: Transform = { panX: 0.5, panY: 0.5, zoom: 1 };
 
 /** n uniform strips summing to 1. */
 export function uniformStrips(n: number): number[] {
@@ -100,8 +101,9 @@ export function hitTest(
 
 /**
  * Cover-fit placement of an (iw × ih) image inside the (cw × ch) viewport,
- * panned by xform. x = -(imgW - cw)·panX so panX=0 shows the left edge,
- * panX=1 the right edge, 0.5 centered. Always fully covers the viewport.
+ * scaled by xform.zoom, then panned. x = -(imgW - cw)·panX so panX=0 shows the
+ * left edge, panX=1 the right edge, 0.5 centered. Always fully covers the
+ * viewport (zoom ≥ 1 keeps the image at or past cover on both axes).
  */
 export function placement(
   iw: number,
@@ -111,8 +113,8 @@ export function placement(
   xform: Transform,
 ): { x: number; y: number; width: number; height: number } {
   const { scale } = coverFit(iw, ih, cw, ch);
-  const imgW = iw * scale;
-  const imgH = ih * scale;
+  const imgW = iw * scale * xform.zoom;
+  const imgH = ih * scale * xform.zoom;
   // `+ 0` coerces the negative zero that -(imgW-cw)*0 produces to +0, so the
   // pan-extreme positions are exact (Vitest's toBe uses Object.is).
   return {

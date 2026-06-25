@@ -106,22 +106,45 @@ describe("REROLL", () => {
 });
 
 describe("SET_XFORM", () => {
-  it("clamps pan into [0,1]", () => {
+  it("clamps pan into [0,1] and preserves zoom", () => {
     const next = gridRevealReducer(initialGridRevealState, {
       type: "SET_XFORM",
       slot: "top",
-      xform: { panX: -5, panY: 99 },
+      xform: { panX: -5, panY: 99, zoom: 2 },
     } as GridRevealAction);
-    expect(next.xformTop).toEqual({ panX: 0, panY: 1 });
+    expect(next.xformTop).toEqual({ panX: 0, panY: 1, zoom: 2 });
   });
 
   it("writes Bottom slot", () => {
     const next = gridRevealReducer(initialGridRevealState, {
       type: "SET_XFORM",
       slot: "bottom",
-      xform: { panX: 0.2, panY: 0.8 },
+      xform: { panX: 0.2, panY: 0.8, zoom: 1.5 },
     } as GridRevealAction);
-    expect(next.xformBottom).toEqual({ panX: 0.2, panY: 0.8 });
+    expect(next.xformBottom).toEqual({ panX: 0.2, panY: 0.8, zoom: 1.5 });
+  });
+});
+
+describe("SET_FILTERS", () => {
+  it("writes the Top slot's filter stack", () => {
+    const stack = [{ id: "x", kind: "blur", enabled: true, radius: 4 }] as never;
+    const next = gridRevealReducer(initialGridRevealState, {
+      type: "SET_FILTERS",
+      slot: "top",
+      filters: stack,
+    } as GridRevealAction);
+    expect(next.filtersTop).toBe(stack);
+    expect(next.filtersBottom).toEqual([]);
+  });
+
+  it("writes the Bottom slot's filter stack", () => {
+    const stack = [{ id: "y", kind: "brightness", enabled: true, value: 1.2 }] as never;
+    const next = gridRevealReducer(initialGridRevealState, {
+      type: "SET_FILTERS",
+      slot: "bottom",
+      filters: stack,
+    } as GridRevealAction);
+    expect(next.filtersBottom).toBe(stack);
   });
 });
 
@@ -130,7 +153,7 @@ describe("SET_ASPECT", () => {
     const moved = gridRevealReducer(initialGridRevealState, {
       type: "SET_XFORM",
       slot: "top",
-      xform: { panX: 0, panY: 0 },
+      xform: { panX: 0, panY: 0, zoom: 3 },
     } as GridRevealAction);
     const next = gridRevealReducer(moved, {
       type: "SET_ASPECT",
