@@ -4,7 +4,6 @@ import {
   useContext,
   useReducer,
   useRef,
-  useState,
   type Dispatch,
   type ReactNode,
   type RefObject,
@@ -36,14 +35,14 @@ export interface GridRevealContextValue {
   imgTop: ImageSlot;
   imgBottom: ImageSlot;
   loadImage: (slot: Slot, file: File) => Promise<void>;
+  /** Load a file into the next slot by fill order: Bottom first, then Top, then
+   *  replace Top. Used by canvas drops and the empty-canvas placeholder. */
+  loadInOrder: (file: File) => Promise<void>;
   clearImage: (slot: Slot) => void;
   state: GridRevealState;
   dispatch: Dispatch<GridRevealAction>;
   stageRef: RefObject<Konva.Stage | null>;
   exportImage: (format: ExportFormat) => void;
-  /** Which slot a canvas drag-drop loads into (shared with the sidebar control). */
-  dropTarget: Slot;
-  setDropTarget: (slot: Slot) => void;
 }
 
 const GridRevealContext = createContext<GridRevealContextValue | null>(null);
@@ -53,10 +52,12 @@ export function GridRevealProvider({ children }: { children: ReactNode }) {
   const bottom = useImageBitmap();
   const [state, dispatch] = useReducer(gridRevealReducer, initialGridRevealState);
   const stageRef = useRef<Konva.Stage | null>(null);
-  const [dropTarget, setDropTarget] = useState<Slot>("top");
 
   const loadImage = (slot: Slot, file: File) =>
     slot === "top" ? top.load(file) : bottom.load(file);
+  // Fill order: Bottom first, then Top; any further drop replaces Top.
+  const loadInOrder = (file: File) =>
+    bottom.status === "ready" ? top.load(file) : bottom.load(file);
 
   const clearImage = (slot: Slot) => {
     if (slot === "top") top.reset();
@@ -94,13 +95,12 @@ export function GridRevealProvider({ children }: { children: ReactNode }) {
       error: bottom.error,
     },
     loadImage,
+    loadInOrder,
     clearImage,
     state,
     dispatch,
     stageRef,
     exportImage,
-    dropTarget,
-    setDropTarget,
   };
 
   return (

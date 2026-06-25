@@ -20,7 +20,6 @@ import {
   MIN_DIM,
   type AspectId,
   type Orientation,
-  type Slot,
 } from "./gridRevealReducer";
 
 /** Whole-number grid-dimension input clamped to [MIN_DIM, MAX_DIM], committing
@@ -64,8 +63,6 @@ export function GridRevealControls() {
     state,
     dispatch,
     exportImage,
-    dropTarget,
-    setDropTarget,
   } = useGridReveal();
   const [format, setFormat] = useState<ExportFormat>("png");
 
@@ -169,18 +166,6 @@ export function GridRevealControls() {
             >
               <Shuffle /> Re-roll
             </Button>
-            <div className="flex flex-col gap-2">
-              <FieldLabel>Drop target</FieldLabel>
-              <Tabs
-                value={dropTarget}
-                onValueChange={(v) => setDropTarget(v as Slot)}
-              >
-                <TabsList className="w-full">
-                  <TabsTrigger value="top">Top</TabsTrigger>
-                  <TabsTrigger value="bottom">Bottom</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
           </AccordionContent>
         </AccordionItem>
 

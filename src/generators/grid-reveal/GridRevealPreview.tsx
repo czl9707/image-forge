@@ -1,11 +1,12 @@
 // src/generators/grid-reveal/GridRevealPreview.tsx
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type Ref } from "react";
 import { Group, Layer, Rect, Stage } from "react-konva";
 import type Konva from "konva";
 import { useGridReveal } from "./GridRevealProvider";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { useFileDrop } from "@/components/canvas/useFileDrop";
 import { DropHighlight } from "@/components/canvas/DropHighlight";
+import { EmptySlotPlaceholder } from "@/components/canvas/EmptySlotPlaceholder";
 import { FilteredImage } from "@/components/filters/FilteredImage";
 import { canvasDims } from "@/lib/canvas/dimensions";
 import { containFit, coverFit } from "@/lib/canvas/fit";
@@ -22,6 +23,10 @@ import type { Slot } from "./gridRevealReducer";
 
 /** Click vs drag threshold in CSS px (pointer movement below this = click). */
 const CLICK_THRESHOLD_PX = 3;
+
+/** Target on-screen size (CSS px) for the empty-canvas upload hint. Divided by
+ *  `scale` at the call site to convert into the stage's logical units. */
+const PLACEHOLDER_FONT_PX = 16;
 
 interface DragState {
   startClientX: number;
@@ -41,13 +46,13 @@ export function GridRevealPreview() {
     state,
     dispatch,
     stageRef,
-    loadImage,
-    dropTarget,
+    loadInOrder,
   } = useGridReveal();
   const { background } = useThemeColors();
   const containerRef = useRef<HTMLDivElement>(null);
   const [avail, setAvail] = useState({ w: 0, h: 0 });
   const dragRef = useRef<DragState | null>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -81,6 +86,16 @@ export function GridRevealPreview() {
     : null;
 
   const bothReady = imgTop.status === "ready" && imgBottom.status === "ready";
+  const isEmpty = !topBmp && !bottomBmp;
+
+  // The empty-canvas placeholder opens a file picker; the chosen file fills the
+  // next slot by order (Bottom first, then Top).
+  const openPicker = () => pickerRef.current?.click();
+  const onPick = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) void loadInOrder(f);
+    e.target.value = "";
+  };
 
   // Map a screen point to logical canvas coords via the stage container rect.
   const toLogical = (clientX: number, clientY: number) => {
@@ -136,11 +151,14 @@ export function GridRevealPreview() {
     dispatch({ type: "FLIP_CELL", row: d.row, col: d.col });
   };
 
-  // Drag-drop a file anywhere on the canvas → load into the selected slot.
-  const { dropProps, hoveredTarget } = useFileDrop<Slot>({
+  // Drag-drop a file anywhere on the canvas → fill the next slot by order
+  // (Bottom first, then Top, then replace Top).
+  const { dropProps, hoveredTarget } = useFileDrop<boolean>({
     stageRef,
-    resolve: () => dropTarget, // whole canvas is the target
-    onDrop: (file, slot) => loadImage(slot, file),
+    resolve: () => true, // whole canvas is the target
+    onDrop: (file) => {
+      void loadInOrder(file);
+    },
   });
 
   return (
@@ -156,8 +174,11 @@ export function GridRevealPreview() {
         scaleX={scale}
         scaleY={scale}
       >
-        {/* Image layer: one clipped draw per cell, at viewport placement so
-            each image reads as one continuous picture across its cells. */}
+        {/* Image layer. Empty canvas → the upload placeholder (border + hint,
+            clickable, reuses the swap-collage affordance). Otherwise one clipped
+            draw per cell at viewport placement so each image reads as one
+            continuous picture across its cells. A cell whose chosen image is
+            missing (partial load) falls back to the other image. */}
         <Layer>
           <Rect
             x={0}
@@ -167,60 +188,81 @@ export function GridRevealPreview() {
             fill={background}
             listening={false}
           />
-          {grid.map((row, ri) =>
-            row.map((cell, ci) => {
-              const showBottom = state.cells[ri][ci];
-              const bmp = showBottom ? bottomBmp : topBmp;
-              const place = showBottom ? bottomPlace : topPlace;
-              if (!bmp || !place) return null;
-              return (
-                <Group
-                  key={`cell-${ri}-${ci}`}
-                  clip={{ x: cell.x, y: cell.y, width: cell.w, height: cell.h }}
-                >
-                  <FilteredImage
-                    stack={showBottom ? state.filtersBottom : state.filtersTop}
-                    image={bmp}
-                    x={place.x}
-                    y={place.y}
-                    width={place.width}
-                    height={place.height}
-                    listening={false}
-                  />
-                </Group>
-              );
-            }),
+          {isEmpty ? (
+            <EmptySlotPlaceholder
+              tileW={dims.cw}
+              tileH={dims.ch}
+              fontSize={PLACEHOLDER_FONT_PX / scale}
+              strokeWidth={1 / scale}
+              highlighted={hoveredTarget === true}
+              onActivate={openPicker}
+            />
+          ) : (
+            grid.map((row, ri) =>
+              row.map((cell, ci) => {
+                const showBottom = state.cells[ri][ci];
+                const bmp =
+                  (showBottom ? bottomBmp : topBmp) ??
+                  (showBottom ? topBmp : bottomBmp);
+                const place =
+                  (showBottom ? bottomPlace : topPlace) ??
+                  (showBottom ? topPlace : bottomPlace);
+                if (!bmp || !place) return null;
+                const stack =
+                  bmp === bottomBmp ? state.filtersBottom : state.filtersTop;
+                return (
+                  <Group
+                    key={`cell-${ri}-${ci}`}
+                    clip={{ x: cell.x, y: cell.y, width: cell.w, height: cell.h }}
+                  >
+                    <FilteredImage
+                      stack={stack}
+                      image={bmp}
+                      x={place.x}
+                      y={place.y}
+                      width={place.width}
+                      height={place.height}
+                      listening={false}
+                    />
+                  </Group>
+                );
+              }),
+            )
           )}
         </Layer>
 
-        {/* Border layer: always drawn (empty-state skeleton), baked into export. */}
-        <Layer listening={false}>
-          {colLines.map((x, i) => (
-            <Rect
-              key={`cv-${i}`}
-              x={x - BORDER_WIDTH / 2}
-              y={0}
-              width={BORDER_WIDTH}
-              height={dims.ch}
-              fill={BORDER_COLOR}
-              opacity={BORDER_OPACITY}
-            />
-          ))}
-          {rowLines.map((y, i) => (
-            <Rect
-              key={`rh-${i}`}
-              x={0}
-              y={y - BORDER_WIDTH / 2}
-              width={dims.cw}
-              height={BORDER_WIDTH}
-              fill={BORDER_COLOR}
-              opacity={BORDER_OPACITY}
-            />
-          ))}
-        </Layer>
+        {/* Border layer: the grey grid skeleton, baked into export. Drawn only
+            when there is at least one image (the empty state uses the upload
+            placeholder instead). */}
+        {!isEmpty && (
+          <Layer listening={false}>
+            {colLines.map((x, i) => (
+              <Rect
+                key={`cv-${i}`}
+                x={x - BORDER_WIDTH / 2}
+                y={0}
+                width={BORDER_WIDTH}
+                height={dims.ch}
+                fill={BORDER_COLOR}
+                opacity={BORDER_OPACITY}
+              />
+            ))}
+            {rowLines.map((y, i) => (
+              <Rect
+                key={`rh-${i}`}
+                x={0}
+                y={y - BORDER_WIDTH / 2}
+                width={dims.cw}
+                height={BORDER_WIDTH}
+                fill={BORDER_COLOR}
+                opacity={BORDER_OPACITY}
+              />
+            ))}
+          </Layer>
+        )}
 
         {/* Drop highlight over the whole canvas while dragging a file in. */}
-        {hoveredTarget !== null && (
+        {hoveredTarget === true && (
           <Layer listening={false}>
             <DropHighlight
               x={0}
@@ -233,24 +275,37 @@ export function GridRevealPreview() {
           </Layer>
         )}
 
-        {/* Hit layer: transparent, captures pointer; hidden at export (.overlay). */}
-        <Layer>
-          <Rect
-            name="overlay"
-            x={0}
-            y={0}
-            width={dims.cw}
-            height={dims.ch}
-            fill="rgba(0,0,0,0)"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerLeave={() => {
-              dragRef.current = null;
-            }}
-          />
-        </Layer>
+        {/* Hit layer: transparent, captures pointer; hidden at export (.overlay).
+            Only rendered when there are images to interact with — when the
+            canvas is empty the placeholder itself receives the click. */}
+        {!isEmpty && (
+          <Layer>
+            <Rect
+              name="overlay"
+              x={0}
+              y={0}
+              width={dims.cw}
+              height={dims.ch}
+              fill="rgba(0,0,0,0)"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={() => {
+                dragRef.current = null;
+              }}
+            />
+          </Layer>
+        )}
       </Stage>
+
+      {/* Hidden picker backing the empty-canvas placeholder click. */}
+      <input
+        ref={pickerRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={onPick}
+      />
     </div>
   );
 }
