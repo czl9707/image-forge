@@ -9,11 +9,12 @@ import {
 import { uniformStrips } from "../layout";
 
 describe("initialGridRevealState", () => {
-  it("defaults to equal grid with all cells showing Top (false)", () => {
-    expect(initialGridRevealState.mode).toBe("equal");
+  it("defaults to random grid with all cells showing Top (false)", () => {
+    expect(initialGridRevealState.mode).toBe("random");
     expect(initialGridRevealState.cols).toBe(DEFAULT_COLS);
     expect(initialGridRevealState.rows).toBe(DEFAULT_ROWS);
-    expect(initialGridRevealState.colStrips).toEqual(uniformStrips(DEFAULT_COLS));
+    expect(initialGridRevealState.colStrips).toHaveLength(DEFAULT_COLS);
+    expect(initialGridRevealState.colStrips).not.toEqual(uniformStrips(DEFAULT_COLS));
     expect(initialGridRevealState.cells.every((r) => r.every((v) => v === false))).toBe(true);
   });
 });
@@ -82,7 +83,7 @@ describe("SET_MODE", () => {
   it("is a no-op (same ref) when mode is unchanged", () => {
     const next = gridRevealReducer(initialGridRevealState, {
       type: "SET_MODE",
-      mode: "equal",
+      mode: "random",
     } as GridRevealAction);
     expect(next).toBe(initialGridRevealState);
   });
@@ -90,8 +91,12 @@ describe("SET_MODE", () => {
 
 describe("REROLL", () => {
   it("is a no-op (same ref) in equal mode", () => {
-    const next = gridRevealReducer(initialGridRevealState, { type: "REROLL" } as GridRevealAction);
-    expect(next).toBe(initialGridRevealState);
+    const equal = gridRevealReducer(initialGridRevealState, {
+      type: "SET_MODE",
+      mode: "equal",
+    } as GridRevealAction);
+    const next = gridRevealReducer(equal, { type: "REROLL" } as GridRevealAction);
+    expect(next).toBe(equal);
   });
 
   it("regenerates strips in random mode", () => {

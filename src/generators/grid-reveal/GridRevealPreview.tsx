@@ -22,7 +22,7 @@ import {
 import type { Slot } from "./gridRevealReducer";
 
 /** Click vs drag threshold in CSS px (pointer movement below this = click). */
-const CLICK_THRESHOLD_PX = 3;
+const CLICK_THRESHOLD_PX = 5;
 
 /** Target on-screen size (CSS px) for the empty-canvas upload hint. Divided by
  *  `scale` at the call site to convert into the stage's logical units. */

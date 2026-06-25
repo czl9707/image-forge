@@ -8,8 +8,8 @@ export const MAX_STRIP_MULT = 1.5;
 
 /** Border look — always drawn, baked into the export. */
 export const BORDER_COLOR = "#888888";
-export const BORDER_OPACITY = 0.5;
-export const BORDER_WIDTH = 2; // logical px (NOT divided by stage scale)
+export const BORDER_OPACITY = 0.75;
+export const BORDER_WIDTH = 1; // logical px (NOT divided by stage scale)
 
 export interface Transform {
   panX: number; // [0,1], 0.5 = centered

@@ -128,7 +128,7 @@ describe("splitLines", () => {
 describe("constants", () => {
   it("exposes the agreed border constants", () => {
     expect(BORDER_COLOR).toBe("#888888");
-    expect(BORDER_OPACITY).toBe(0.5);
-    expect(BORDER_WIDTH).toBe(2);
+    expect(BORDER_OPACITY).toBe(0.75);
+    expect(BORDER_WIDTH).toBe(1);
   });
 });

@@ -28,8 +28,8 @@ export interface GridRevealState {
   filtersBottom: FilterStack;
 }
 
-export const DEFAULT_COLS = 4;
-export const DEFAULT_ROWS = 3;
+export const DEFAULT_COLS = 8;
+export const DEFAULT_ROWS = 6;
 export const MIN_DIM = 1;
 export const MAX_DIM = 12;
 
@@ -58,11 +58,11 @@ export const initialGridRevealState: GridRevealState = {
   aspect: "4:3",
   orientation: "lr",
   exportSize: 1080,
-  mode: "equal",
+  mode: "random",
   cols: DEFAULT_COLS,
   rows: DEFAULT_ROWS,
-  colStrips: uniformStrips(DEFAULT_COLS),
-  rowStrips: uniformStrips(DEFAULT_ROWS),
+  colStrips: rollStrips(DEFAULT_COLS),
+  rowStrips: rollStrips(DEFAULT_ROWS),
   cells: makeCells(DEFAULT_ROWS, DEFAULT_COLS),
   xformTop: { ...IDENTITY_XFORM },
   xformBottom: { ...IDENTITY_XFORM },
