@@ -1,6 +1,6 @@
 // src/generators/grid-reveal/GridRevealPreview.tsx
 import { useEffect, useRef, useState, type ChangeEvent, type Ref } from "react";
-import { Group, Layer, Rect, Stage } from "react-konva";
+import { Group, Layer, Rect, Stage, Text } from "react-konva";
 import type Konva from "konva";
 import { useGridReveal } from "./GridRevealProvider";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -27,6 +27,11 @@ const CLICK_THRESHOLD_PX = 3;
 /** Target on-screen size (CSS px) for the empty-canvas upload hint. Divided by
  *  `scale` at the call site to convert into the stage's logical units. */
 const PLACEHOLDER_FONT_PX = 16;
+
+/** Decoration: tiny index number in each cell's bottom-left corner. Same grey
+ *  as the grid borders, baked into export. Logical px (not /scale). */
+const CELL_LABEL_FONT_PX = 11;
+const CELL_LABEL_INSET = 5;
 
 interface DragState {
   startClientX: number;
@@ -256,6 +261,24 @@ export function GridRevealPreview() {
               opacity={BORDER_OPACITY}
             />
           ))}
+          {/* Decoration: zero-padded cell index in each cell's bottom-left
+              corner. Row-major numbering (01 across the first row, then 02…).
+              Kept inside the border layer so it shares the grid's grey and is
+              baked into the export. */}
+          {grid.map((row, ri) =>
+            row.map((cell, ci) => (
+              <Text
+                key={`cl-${ri}-${ci}`}
+                x={cell.x + CELL_LABEL_INSET}
+                y={cell.y + cell.h - CELL_LABEL_FONT_PX - CELL_LABEL_INSET}
+                text={String(ri * row.length + ci + 1).padStart(2, "0")}
+                fontSize={CELL_LABEL_FONT_PX}
+                fill={BORDER_COLOR}
+                opacity={BORDER_OPACITY}
+                listening={false}
+              />
+            )),
+          )}
         </Layer>
 
         {/* Drop highlight over the whole canvas while dragging a file in. */}
