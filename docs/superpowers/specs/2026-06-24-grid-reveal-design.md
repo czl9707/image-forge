@@ -12,6 +12,7 @@ The same Konva `<Stage>` is both live preview and export source (preview === exp
 ## Decisions
 
 - **Pan model**: per-image, shared. Top has one transform, Bottom has another. Dragging a cell pans the image that cell reveals, everywhere that image is visible. (Matches Swap Collage's transform-by-source-image model.)
+- **Per-image zoom + filters (revised 2026-06-24)**: each slot's `Transform` also carries `zoom` (1 = cover, set by a sidebar slider) and a **filter stack** (`filtersTop` / `filtersBottom`), identical to Swap Collage. The sidebar reuses the shared `ImageSlotControls` (source + zoom + filters). Pan remains a canvas drag only — there is no sidebar pan control or "Reset pan". (The original v1 scope was pan-only with no zoom/filters; this was expanded to match Swap Collage's per-image controls.)
 - **Gesture**: single unified pointer gesture with a movement threshold. < ~3 CSS px → click → flip the cell; ≥ threshold → drag → pan the revealed image. No modes, no keyboard.
 - **Grid mode**: `equal` (uniform strips) or `random` (both axes — column widths and row heights — random within min/max caps). Random mode has a **re-roll** button.
 - **Default cell state**: all cells start on the **Top** image (default `false`). Clicks reveal the Bottom.
@@ -142,7 +143,7 @@ Interaction/preview stay untested at the unit level (Konva/pointer), consistent 
 
 ## Out of scope (deferred)
 
-- **Per-image filters** (the `FilteredImage` / filter-stack system) — not requested; structure allows dropping it in later.
 - **Per-cell offset** ("cool mode") — the per-cell clipped draw at viewport placement is exactly what makes this additive later: each cell would add its own offset to the placement. No rewrite, just a new data field and a drag-target change. Deliberately not built now (YAGNI), but enabled by construction.
-- **Zoom** (transform is pan-only).
 - **Border width / color controls** (fixed values for v1).
+
+> **Revision 2026-06-24:** Per-image **filters** and **zoom** were originally in this deferred list; both are now in scope (see Decisions). The per-cell offset mode remains deferred.

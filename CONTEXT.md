@@ -76,4 +76,7 @@ _Avoid_: flag (too generic).
 `equal` (uniform strips) or `random` (clamped random strips, re-rollable).
 
 **Transform**:
-A slot's per-image pan `{ panX, panY } ∈ [0,1]` (0.5 centered). Dragging a cell pans the image it reveals, everywhere that image shows.
+A slot's per-image framing `{ panX, panY, zoom }`. `panX/panY ∈ [0,1]` (0.5 centered) and is set by dragging a cell on the canvas; `zoom` (1 = cover) is set by the sidebar slider. Dragging a cell pans the image it reveals, everywhere that image shows.
+
+**Filter stack**:
+An ordered list of **filter instances** applied to one slot's image (`filtersTop` / `filtersBottom`), exactly as in swap collage. An image keeps its stack whether it shows as Top or Bottom. Set via the shared `ImageSlotControls`.
