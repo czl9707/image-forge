@@ -107,6 +107,7 @@ export function GridRevealProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with its provider, matching SwapCollageProvider
 export function useGridReveal(): GridRevealContextValue {
   const ctx = useContext(GridRevealContext);
   if (!ctx) {
