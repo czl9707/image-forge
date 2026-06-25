@@ -53,3 +53,30 @@ One entry in a filter stack: a discriminated union over `kind` (blur, brightness
 ### General
 
 _Avoid_: "boundary," "service," "component" (the generic kind) when naming seams — use **module**, **seam**, **adapter** as in the architecture language.
+
+### Grid reveal
+
+**Slot**:
+One of the two stacked images — **Top** (overlays) or **Bottom** (beneath). Both cover the export viewport.
+_Avoid_: layer, panel.
+
+**Strip**:
+One column-width or row-height partition of the canvas. `cols` column strips × `rows` row strips form the grid. In **equal** mode strips are uniform; in **random** mode each is clamped to a min/max of the uniform size and re-rollable.
+_Avoid_: band, lane.
+
+**Cell**:
+The intersection of one column strip × one row strip — a window showing Top or Bottom.
+_Avoid_: tile (that belongs to swap collage), square.
+
+**Cell state**:
+The per-cell boolean. `false` = Top shows (default), `true` = Bottom shows. Click flips it.
+_Avoid_: flag (too generic).
+
+**Grid mode**:
+`equal` (uniform strips) or `random` (clamped random strips, re-rollable).
+
+**Transform**:
+A slot's per-image framing `{ panX, panY, zoom }`. `panX/panY ∈ [0,1]` (0.5 centered) and is set by dragging a cell on the canvas; `zoom` (1 = cover) is set by the sidebar slider. Dragging a cell pans the image it reveals, everywhere that image shows.
+
+**Filter stack**:
+An ordered list of **filter instances** applied to one slot's image (`filtersTop` / `filtersBottom`), exactly as in swap collage. An image keeps its stack whether it shows as Top or Bottom. Set via the shared `ImageSlotControls`.

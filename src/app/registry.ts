@@ -1,6 +1,7 @@
 import type { FC, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { swapCollageGenerator } from "../generators/swap-collage";
+import { gridRevealGenerator } from "../generators/grid-reveal";
 
 export type Generator = {
   id: string;
@@ -13,4 +14,5 @@ export type Generator = {
 
 export const registry: Generator[] = [
   swapCollageGenerator,
+  gridRevealGenerator,
 ];

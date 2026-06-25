@@ -1,0 +1,131 @@
+// src/generators/grid-reveal/GridRevealProvider.tsx
+import {
+  createContext,
+  useContext,
+  useReducer,
+  useRef,
+  type Dispatch,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import type Konva from "konva";
+import { exportStage, type ExportFormat } from "@/export";
+import { useImageBitmap, type ImgStatus } from "@/hooks/useImageBitmap";
+import {
+  gridRevealReducer,
+  initialGridRevealState,
+  type AspectId,
+  type GridMode,
+  type GridRevealAction,
+  type GridRevealState,
+  type Orientation,
+  type Slot,
+} from "./gridRevealReducer";
+import type { Transform } from "./layout";
+import type { FilterInstance, FilterKind, FilterStack } from "@/lib/filters";
+
+export interface ImageSlot {
+  bitmap: ImageBitmap | null;
+  name: string | null;
+  status: ImgStatus;
+  error: string | null;
+}
+
+export interface GridRevealContextValue {
+  imgTop: ImageSlot;
+  imgBottom: ImageSlot;
+  loadImage: (slot: Slot, file: File) => Promise<void>;
+  /** Load a file into the next slot by fill order: Bottom first, then Top, then
+   *  replace Top. Used by canvas drops and the empty-canvas placeholder. */
+  loadInOrder: (file: File) => Promise<void>;
+  clearImage: (slot: Slot) => void;
+  state: GridRevealState;
+  dispatch: Dispatch<GridRevealAction>;
+  stageRef: RefObject<Konva.Stage | null>;
+  exportImage: (format: ExportFormat) => void;
+}
+
+const GridRevealContext = createContext<GridRevealContextValue | null>(null);
+
+export function GridRevealProvider({ children }: { children: ReactNode }) {
+  const top = useImageBitmap();
+  const bottom = useImageBitmap();
+  const [state, dispatch] = useReducer(gridRevealReducer, initialGridRevealState);
+  const stageRef = useRef<Konva.Stage | null>(null);
+
+  const loadImage = (slot: Slot, file: File) =>
+    slot === "top" ? top.load(file) : bottom.load(file);
+  // Fill order: Bottom first, then Top; any further drop replaces Top.
+  const loadInOrder = (file: File) =>
+    bottom.status === "ready" ? top.load(file) : bottom.load(file);
+
+  const clearImage = (slot: Slot) => {
+    if (slot === "top") top.reset();
+    else bottom.reset();
+    // Clearing an image resets its framing AND clears its filters — no stale
+    // transform or look on a now-empty canvas.
+    dispatch({ type: "RESET_XFORM", slot });
+    dispatch({ type: "SET_FILTERS", slot, filters: [] });
+  };
+
+  const exportImage = (format: ExportFormat) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    // Hide the hit layer (tagged .overlay) for a chrome-free snapshot, then
+    // restore. exportStage rasterizes synchronously before its first await.
+    const overlays = stage.find<Konva.Node>(".overlay");
+    const prior = overlays.map((n) => n.visible());
+    overlays.forEach((n) => n.visible(false));
+    exportStage(stage, format, "grid-reveal").finally(() =>
+      overlays.forEach((n, i) => n.visible(prior[i])),
+    );
+  };
+
+  const value: GridRevealContextValue = {
+    imgTop: {
+      bitmap: top.bitmap,
+      name: top.name,
+      status: top.status,
+      error: top.error,
+    },
+    imgBottom: {
+      bitmap: bottom.bitmap,
+      name: bottom.name,
+      status: bottom.status,
+      error: bottom.error,
+    },
+    loadImage,
+    loadInOrder,
+    clearImage,
+    state,
+    dispatch,
+    stageRef,
+    exportImage,
+  };
+
+  return (
+    <GridRevealContext.Provider value={value}>
+      {children}
+    </GridRevealContext.Provider>
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with its provider, matching SwapCollageProvider
+export function useGridReveal(): GridRevealContextValue {
+  const ctx = useContext(GridRevealContext);
+  if (!ctx) {
+    throw new Error("useGridReveal must be used within GridRevealProvider");
+  }
+  return ctx;
+}
+
+export type {
+  AspectId,
+  FilterInstance,
+  FilterKind,
+  FilterStack,
+  GridMode,
+  Orientation,
+  Slot,
+  Transform,
+};

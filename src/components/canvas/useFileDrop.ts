@@ -1,8 +1,9 @@
 // src/components/canvas/useFileDrop.ts
-import { useState, type DragEvent, type RefObject } from "react";
+import { useRef, useState, type DragEvent, type RefObject } from "react";
 import type Konva from "konva";
 
 export interface FileDropHandlers {
+  onDragEnter: (e: DragEvent<HTMLElement>) => void;
   onDragOver: (e: DragEvent<HTMLElement>) => void;
   onDragLeave: (e: DragEvent<HTMLElement>) => void;
   onDrop: (e: DragEvent<HTMLElement>) => void;
@@ -31,6 +32,15 @@ export function useFileDrop<T>(opts: {
 } {
   const [hoveredTarget, setHoveredTarget] = useState<T | null>(null);
 
+  // HTML drag events fire `dragenter`/`dragleave` for *every* descendant the
+  // pointer crosses (e.g. the Stage's <canvas>, its container) — not just when
+  // entering/leaving the drop zone as a whole. A counter balances enter/leave
+  // pairs across nesting; we only clear the highlight once the pointer has
+  // truly left the container. This stops the rapid blink the naive
+  // `onDragLeave → null` caused. `true` marks a drag in progress so `onDrop`
+  // (which may run without a final dragleave) can reset both.
+  const dragDepth = useRef(0);
+
   // Map a screen cursor to a target. The stage canvas is centered in its
   // container, so we map against the canvas's own bounding rect; `resolve`
   // owns the tool-specific "which region is this" logic.
@@ -53,24 +63,36 @@ export function useFileDrop<T>(opts: {
     setHoveredTarget((prev) => (prev === next ? prev : next));
   };
 
-  const onDragLeave = () => setHoveredTarget(null);
+  const onDragEnter = (e: DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    dragDepth.current += 1;
+  };
+
+  // Balanced against dragenter: decrement on each nested leave and only clear
+  // once the pointer has fully exited the container.
+  const onDragLeave = () => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setHoveredTarget(null);
+  };
 
   // Reject non-images before preventDefault (so the browser keeps its default
-  // for, e.g., text drops). NOTE: onDragLeave clears unconditionally, which can
-  // flicker when crossing internal element boundaries — a drag-counter is the
-  // documented fallback if it proves noticeable.
+  // for, e.g., text drops).
   const onDrop = (e: DragEvent<HTMLElement>) => {
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
     e.preventDefault();
     const target = clientToTarget(e.clientX, e.clientY);
     if (target !== null) opts.onDrop(file, target);
+    dragDepth.current = 0;
     setHoveredTarget(null);
   };
 
   return {
-    dropProps: { onDragOver, onDragLeave, onDrop },
+    dropProps: { onDragEnter, onDragOver, onDragLeave, onDrop },
     hoveredTarget,
-    reset: () => setHoveredTarget(null),
+    reset: () => {
+      dragDepth.current = 0;
+      setHoveredTarget(null);
+    },
   };
 }
