@@ -10,6 +10,7 @@ export interface ExportableStage {
 export async function exportStage(
   stage: ExportableStage,
   format: ExportFormat,
+  prefix = "swap-collage",
 ): Promise<void> {
   // The on-screen stage is scaled down from the logical size; invert it so the
   // exported canvas is exactly the logical (export) resolution.
@@ -20,14 +21,14 @@ export async function exportStage(
 
   await new Promise<void>((resolve) => {
     canvas.toBlob((blob) => {
-      if (blob) downloadBlob(blob, filename(format));
+      if (blob) downloadBlob(blob, filename(format, prefix));
       resolve();
     }, mime, quality);
   });
 }
 
-function filename(format: ExportFormat): string {
-  return `swap-collage-${Date.now()}.${format}`;
+function filename(format: ExportFormat, prefix: string): string {
+  return `${prefix}-${Date.now()}.${format}`;
 }
 
 function downloadBlob(blob: Blob, filename: string): void {

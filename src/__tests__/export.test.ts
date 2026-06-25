@@ -57,6 +57,21 @@ describe("exportStage", () => {
     const anchor = document.createElement("a") as unknown as HTMLAnchorElement;
     expect((anchor as unknown as { click: ReturnType<typeof vi.fn> }).click).toHaveBeenCalled();
   });
+
+  it("uses the prefix in the download filename", async () => {
+    const { stage } = makeStage(1);
+    await exportStage(stage, "png", "grid-reveal");
+    const anchor = document.createElement("a") as unknown as HTMLAnchorElement;
+    expect(anchor.download.startsWith("grid-reveal-")).toBe(true);
+    expect(anchor.download.endsWith(".png")).toBe(true);
+  });
+
+  it("defaults to the swap-collage prefix", async () => {
+    const { stage } = makeStage(1);
+    await exportStage(stage, "png");
+    const anchor = document.createElement("a") as unknown as HTMLAnchorElement;
+    expect(anchor.download.startsWith("swap-collage-")).toBe(true);
+  });
 });
 
 type BlobCallback = (blob: Blob | null) => void;
