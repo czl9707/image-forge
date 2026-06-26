@@ -24,6 +24,9 @@ export interface ThemeColors {
   primary: string;
   /** `bg-background` — the app / canvas background fill. */
   background: string;
+  /** `bg-muted` — a subtle off-background fill for inset boxes (swap box,
+   *  drop area) so they read as distinct from the page instead of blending. */
+  muted: string;
 }
 
 /** One token to read off the sentinel. Add rows here to extend the palette. */
@@ -31,6 +34,7 @@ const TOKENS = [
   { key: "mutedForeground", className: "text-muted-foreground", read: "color" },
   { key: "primary", className: "text-primary", read: "color" },
   { key: "background", className: "bg-background", read: "backgroundColor" },
+  { key: "muted", className: "bg-muted", read: "backgroundColor" },
 ] as const satisfies readonly {
   key: keyof ThemeColors;
   className: string;
@@ -41,6 +45,7 @@ const EMPTY_COLORS: ThemeColors = {
   mutedForeground: "",
   primary: "",
   background: "",
+  muted: "",
 };
 
 const ThemeColorsContext = createContext<ThemeColors | null>(null);
@@ -59,15 +64,35 @@ export function ThemeColorsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
-    const next = { ...EMPTY_COLORS };
-    for (const token of TOKENS) {
-      const node = el.querySelector(`.${token.className}`);
-      if (!node) continue;
-      next[token.key] = (getComputedStyle(node) as unknown as Record<string, string>)[
-        token.read
-      ];
-    }
-    setColors(next);
+
+    const readColors = () => {
+      const next = { ...EMPTY_COLORS };
+      for (const token of TOKENS) {
+        const node = el.querySelector(`.${token.className}`);
+        if (!node) continue;
+        next[token.key] = (getComputedStyle(node) as unknown as Record<string, string>)[
+          token.read
+        ];
+      }
+      setColors(next);
+    };
+
+    readColors();
+
+    // Re-read whenever the theme actually lands on <html>. next-themes applies
+    // the theme by toggling a class on documentElement from inside its own
+    // effect, which React runs AFTER this (child) provider's effect — so the
+    // first read above can capture the previous theme and, since `resolvedTheme`
+    // may not transition again, never self-correct. That leaves canvas fills
+    // stuck on the wrong (e.g. light) value in production; StrictMode's dev-only
+    // double-invoke masks it locally. Watching the DOM attribute is immune to
+    // that ordering, and covers user-initiated theme toggles too.
+    const observer = new MutationObserver(readColors);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
+    });
+    return () => observer.disconnect();
   }, [resolvedTheme]);
 
   return (

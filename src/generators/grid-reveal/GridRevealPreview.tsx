@@ -78,7 +78,7 @@ export function GridRevealPreview() {
     stageRef,
     loadInOrder,
   } = useGridReveal();
-  const { background } = useThemeColors();
+  const { muted } = useThemeColors();
   const containerRef = useRef<HTMLDivElement>(null);
   const [avail, setAvail] = useState({ w: 0, h: 0 });
   const dragRef = useRef<DragState | null>(null);
@@ -220,7 +220,7 @@ export function GridRevealPreview() {
             y={0}
             width={dims.cw}
             height={dims.ch}
-            fill={background}
+            fill={muted}
             listening={false}
           />
           {isEmpty ? (

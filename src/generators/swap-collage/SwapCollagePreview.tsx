@@ -25,17 +25,18 @@ const SLOTS = ["A", "B"] as const satisfies readonly Slot[];
 const PLACEHOLDER_FONT_PX = 16;
 
 /** The opaque placeholder shown in the swap box when a tile has no overlay
- *  image: a canvas-background-filled cutout with a muted outline. Reads its own
- *  theme colors via useThemeColors. */
+ *  image: a muted-bg cutout with a muted outline, so the box reads as an inset
+ *  surface instead of the same flat color as the page. Reads its own theme
+ *  colors via useThemeColors. */
 function SwapBoxPlaceholder({ x, y, w, h }: RectGeom) {
-  const { mutedForeground, background } = useThemeColors();
+  const { mutedForeground, muted } = useThemeColors();
   return (
     <Rect
       x={x}
       y={y}
       width={w}
       height={h}
-      fill={background}
+      fill={muted}
       stroke={mutedForeground}
       strokeWidth={1}
       listening={false}
